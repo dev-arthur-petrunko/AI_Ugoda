@@ -14,9 +14,13 @@ class LegalDocument(Base, TimestampMixin, UUIDMixin):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     document_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     document_number: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
+    nreg: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)  # реєстраційний номер в ВР
     adoption_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
     issuing_authority: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    legal_force_level: Mapped[str | None] = mapped_column(String(40), nullable=True)  # рівень юридичної сили
     current_known_status: Mapped[str] = mapped_column(String(60), nullable=False, default="Статус потребує перевірки")
+    is_temporary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # норма на час воєнного стану тощо
+    valid_until_condition: Mapped[str | None] = mapped_column(String(500), nullable=True)  # умовна дата дії (наприклад «для дії воєнного стану»)
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 

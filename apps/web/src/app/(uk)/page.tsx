@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, Clock, FileText, Search, ShieldAlert, User, Eye, Upload } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
+import { Logo } from "@/components/ui/logo";
 
 const metrics = [
   { label: "Документи в базі", value: "0", icon: FileText, note: "рахунок ведеться лише за реальними імпортованими актами" },
@@ -26,6 +28,13 @@ const quickActions = [
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
+      <Loader />
+
+      <div className="flex items-center gap-3 mb-4">
+        <Logo className="w-8 h-8" />
+        <span className="font-serif font-bold text-xl text-cream tracking-tight">AI Ugoda</span>
+      </div>
+
       <div>
         <h1 className="text-2xl font-bold text-text tracking-tight">Центр правової аналітики</h1>
         <p className="text-text-secondary">Актуальність законодавства, зміни та юридичні ризики в одному просторі.</p>
@@ -36,7 +45,7 @@ export default function DashboardPage() {
           <Card key={m.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-text-secondary">{m.label}</CardTitle>
-              <m.icon className="h-5 w-5 text-gold-muted" />
+              <m.icon className="h-5 w-5 text-crema" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-mono font-bold text-text">{m.value}</div>
@@ -53,10 +62,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="py-6">
             <div className="flex flex-col items-center justify-center py-10 text-text-secondary">
-              <Clock className="mb-3 h-8 w-8 text-gold-muted opacity-50" />
+              <Clock className="mb-3 h-8 w-8 text-crema opacity-50" />
               <p className="text-sm">Змін ще не виявлено</p>
               <p className="text-xs text-text-secondary/60 mt-1">
-                Після імпорту з zakon.rada.gov.ua тут з\'явяться підтверджені події зміни законодавства.
+                Після імпорту з data.rada.gov.ua тут з'являться підтверджені події зміни законодавства.
               </p>
             </div>
           </CardContent>
@@ -69,7 +78,7 @@ export default function DashboardPage() {
           <CardContent className="py-2 space-y-2">
             {quickActions.map((a) => (
               <Button key={a.label} asChild variant="ghost" size="lg" className="w-full justify-start text-left border-b border-gold/10 last:border-0">
-                <a.icon className="mr-2 h-4 w-4 text-gold-muted" />
+                <a.icon className="mr-2 h-4 w-4 text-crema" />
                 {a.label}
               </Button>
             ))}
@@ -79,7 +88,7 @@ export default function DashboardPage() {
 
       <div className="rounded-lg border border-gold/10 bg-elevated p-6 text-text-secondary">
         <p className="text-sm">
-          <strong>Примітка про дані.</strong> Панель відображає лише значення, обчислені з реальних записів бази. Поки джерело zakon.rada.gov.ua не імпортовано, статистика дорівнює нулю — це цільово, щоб не вигадувати показники.
+          <strong>Примітка про дані.</strong> Панель відображає лише значення, обчислені з реальних записів бази. Поки джерело data.rada.gov.ua не імпортовано, статистика дорівнює нулю — це цільово, щоб не вигадувати показники.
         </p>
       </div>
     </div>

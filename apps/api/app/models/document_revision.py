@@ -20,15 +20,15 @@ class DocumentRevision(Base, TimestampMixin, UUIDMixin):
     )
     revision_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     revision_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
-    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
-    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
-    imported_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)  # дата вступу в чинність
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)    # дата втрати чинності
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source_checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    source_checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)  # SHA-256 сирого вмісту
+    source_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)      # хеш нормалізованого тексту
     original_content_location: Mapped[str | None] = mapped_column(Text, nullable=True)
     normalized_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     parser_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    imported_at: Mapped[Date | None] = mapped_column(Date, nullable=True)
+    imported_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     verification_status: Mapped[str] = mapped_column(String(40), nullable=False, default="unverified")
 
     document: Mapped["LegalDocument"] = relationship(back_populates="revisions")

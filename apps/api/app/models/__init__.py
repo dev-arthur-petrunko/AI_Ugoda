@@ -3,6 +3,8 @@ from app.models.document_revision import DocumentRevision  # noqa: F401
 from app.models.legal_provision import LegalProvision  # noqa: F401
 from app.models.legal_event import LegalEvent  # noqa: F401
 from app.models.legal_reference import LegalReference  # noqa: F401
+from app.models.legal_link import LegalLink  # noqa: F401
+from app.models.legal_force_level import LegalForceLevel  # noqa: F401
 from app.models.ai_analysis import AIAnalysis  # noqa: F401
 from app.models.conflict_candidate import ConflictCandidate  # noqa: F401
 from app.models.user import User  # noqa: F401

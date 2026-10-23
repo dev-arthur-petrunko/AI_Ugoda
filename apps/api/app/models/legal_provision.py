@@ -18,6 +18,10 @@ class LegalProvision(Base, TimestampMixin, UUIDMixin):
         index=True,
     )
     provision_identifier: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    article_number: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    part_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    point_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    subpoint_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     parent_provision_id: Mapped[uuid.UUID | None] = mapped_column(
         "parent_provision_id",
         UUID(as_uuid=True),
@@ -30,6 +34,8 @@ class LegalProvision(Base, TimestampMixin, UUIDMixin):
     content_checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     revision: Mapped["DocumentRevision"] = relationship(back_populates="provisions")
+    parent: Mapped["LegalProvision"] = relationship(remote_side=[id], back_populates="children")
+    children: Mapped[list["LegalProvision"]] = relationship(back_populates="parent")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<LegalProvision id={self.id} ident={self.provision_identifier}>"

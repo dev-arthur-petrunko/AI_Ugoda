@@ -18,18 +18,25 @@ class Settings(BaseSettings):
     # Redis / task queue (optional for MVP)
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # Official source connector
+    # Official source connectors
     ZAKON_RADA_BASE_URL: str = "https://zakon.rada.gov.ua"
     ZAKON_RADA_RSS_URL: str = "https://zakon.rada.gov.ua/laws/main/rss"
     ZAKON_RADA_REQUEST_TIMEOUT: int = 30
     ZAKON_RADA_MAX_RETRIES: int = 3
 
+    DATA_RADA_BASE_URL: str = "https://data.rada.gov.ua"
+    DATA_RADA_LAWS_LIST_URL: str = "https://data.rada.gov.ua/ogd/zak/laws/list.json"
+    DATA_RADA_REQUEST_TIMEOUT: int = 30
+    DATA_RADA_MAX_RETRIES: int = 3
+
     # AI provider (configurable; Groq optional)
-    AI_PROVIDER: str = "groq"  # groq | openai | mock
+    AI_PROVIDER: str = "mock"  # mock | groq | openai | anthropic
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-3-haiku-20240307"
 
     # Security / CORS
     CORS_ORIGINS: str = "http://localhost:3000"

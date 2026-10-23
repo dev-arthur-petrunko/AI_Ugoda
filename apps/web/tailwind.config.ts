@@ -10,34 +10,50 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#090A0C",
-        "bg-secondary": "#101216",
+        // Black · Coffee · Gold палитра (ТЗ v2, розділ 7.1)
+        obsidian: "#0B0907",     // основний фон
+        espresso: "#14100C",     // фон секцій
+        coffee: "#241912",       // карточки
+        mocha: "#3A2A1E",        // карточки на hover, розділювачі
+        crema: "#6B4E37",        // вторичні акценти, рамки
+        cream: "#EFE6D6",        // основний текст
+        "cream-muted": "#A89983", // вторичний текст
+        gold: "#C9A24B",         // основний акцент, кнопки
+        "gold-bright": "#E8C871", // блики, hover
+        "gold-deep": "#8F6F2B",  // тіні та градієнти
+        "risk-low": "#7FA67A",   // риск низький (приглушений зелений)
+        "risk-mid": "#E0A23B",   // риск середній
+        "risk-high": "#C4574A",  // риск високий (кирбиновий червоний)
+        bg: "#0B0907",
+        "bg-secondary": "#14100C",
         sidebar: "#0C0D10",
-        elevated: "#15171B",
-        card: "#17191E",
-        gold: "#D6B15E",
-        "gold-bright": "#F0D48A",
-        "gold-muted": "#94763A",
-        text: "#F4F1E8",
-        "text-secondary": "#A5A7AE",
-        border: "rgba(214, 177, 94, 0.18)",
-        success: "#4A9E6E",
-        warning: "#C9A227",
-        error: "#C46A6A",
-        info: "#7FA3B8",
+        elevated: "#241912",
+        card: "#241912",
+        text: "#EFE6D6",
+        "text-secondary": "#A89983",
+        border: "rgba(201, 162, 75, 0.18)",
+        success: "#7FA67A",
+        warning: "#E0A23B",
+        error: "#C4574A",
+        info: "#6B4E37",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        serif: ["var(--font-playfair)", "Playfair Display", "serif"],
       },
       borderRadius: {
         md: "8px",
         lg: "12px",
+        xl: "16px",
         full: "9999px",
       },
       animation: {
         "fade-in": "fadeIn 200ms ease-out",
         "slide-up": "slideUp 300ms ease-out",
         "pulse-soft": "pulseSoft 3s ease-in-out infinite",
+        "logo-draw": "draw 1.2s ease-out forwards",
+        "logo-pop": "pop 0.5s ease-out forwards",
+        "logo-stamp": "stamp 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) 1.4s forwards",
       },
       keyframes: {
         fadeIn: {
@@ -51,6 +67,22 @@ const config: Config = {
         pulseSoft: {
           "0%, 100%": { opacity: "0.6" },
           "50%": { opacity: "1" },
+        },
+        draw: {
+          "0%": { strokeDasharray: "1", strokeDashoffset: "1" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        pop: {
+          "0%": { transform: "scale(0)" },
+          "100%": { transform: "scale(1)" },
+        },
+        stamp: {
+          "0%": { transform: "scale(0) rotate(-90deg)" },
+          "100%": { transform: "scale(1) rotate(0)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
         },
       },
     },
