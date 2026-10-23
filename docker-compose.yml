@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aiugoda_postgres
+    environment:
+      POSTGRES_DB: aiugoda
+      POSTGRES_USER: aiugoda
+      POSTGRES_PASSWORD: aiugoda
+    ports:
+      - "5432:5432"
+    volumes:
+      - aiugoda_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiugoda -d aiugoda"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: aiugoda_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - aiugoda_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: aiugoda_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@postgres:5432/aiugoda
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-change-me
+      - CORS_ORIGINS=http://localhost:3000
+      - AI_PROVIDER=mock
+      - GROQ_API_KEY=
+      - OPENAI_API_KEY=
+      - MAX_UPLOAD_MB=25
+      - CONTRACT_RETENTION_DAYS=90
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: aiugoda_web
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_APP_ENV=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: aiugoda_worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - APP_ENV=development
+      - DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@postgres:5432/aiugoda
+      - REDIS_URL=redis://redis:6379/0
+      - AI_PROVIDER=mock
+    command: sh -c "echo 'worker placeholder (MVP sync runs via API /sync/run)'; sleep infinity"
+
+volumes:
+  aiugoda_postgres_data:
+  aiugoda_redis_data:
+
+networks:
+  default:
+    name: aiugoda_network

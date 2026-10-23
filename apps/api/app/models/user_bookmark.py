@@ -1,0 +1,25 @@
+import uuid
+
+from sqlalchemy import String, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, TimestampMixin, UUIDMixin
+
+
+class UserBookmark(Base, TimestampMixin, UUIDMixin):
+    __tablename__ = "user_bookmarks"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        "user_id", UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        "document_id", UUID(as_uuid=True), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provision_identifier: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="bookmarks")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<UserBookmark id={self.id} user={self.user_id} doc={self.document_id}>"
