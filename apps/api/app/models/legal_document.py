@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Date, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -22,7 +22,7 @@ class LegalDocument(Base, TimestampMixin, UUIDMixin):
     is_temporary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # норма на час воєнного стану тощо
     valid_until_condition: Mapped[str | None] = mapped_column(String(500), nullable=True)  # умовна дата дії (наприклад «для дії воєнного стану»)
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source_metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    source_metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     revisions: Mapped[list["DocumentRevision"]] = relationship(
         back_populates="document", cascade="all, delete-orphan", order_by="DocumentRevision.revision_date.desc()"

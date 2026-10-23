@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, String, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -21,7 +21,7 @@ class ContractDocument(Base, TimestampMixin, UUIDMixin):
     secure_storage_key: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size_bytes: Mapped[int] = mapped_column(nullable=False)
-    file_metadata: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    file_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     processing_status: Mapped[str] = mapped_column(String(40), nullable=False, default="uploaded")
     retention_policy: Mapped[str] = mapped_column(String(60), nullable=False, default="configurable")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

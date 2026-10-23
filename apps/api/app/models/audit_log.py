@@ -1,5 +1,5 @@
 from sqlalchemy import DateTime, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -12,7 +12,7 @@ class AuditLog(Base, TimestampMixin, UUIDMixin):
     action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     target_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
     target_id: Mapped[str | None] = mapped_column("target_id", UUID(as_uuid=True), nullable=True, index=True)
-    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default="now()", nullable=False)
 

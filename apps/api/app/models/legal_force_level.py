@@ -12,7 +12,6 @@ class LegalForceLevel(Base, TimestampMixin, UUIDMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     priority_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # для колізій
 
-    documents: Mapped[list["LegalDocument"]] = relationship(back_populates="force_level")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<LegalForceLevel level={self.level} name={self.name}>"

@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import String, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -17,7 +17,7 @@ class ConflictCandidate(Base, TimestampMixin, UUIDMixin):
         "provision_b_id", UUID(as_uuid=True), ForeignKey("legal_provisions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     conflict_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)  # HIERARCHY_CONFLICT, SPECIAL_VS_GENERAL, SAME_LEVEL_NEWER, DEAD_REFERENCE, GHOST_NORM, CODE_DUPLICATION, UNCONSTITUTIONAL, EXPIRING, EU_MISMATCH
-    evidence_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    evidence_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     confidence: Mapped[str] = mapped_column(String(40), nullable=False, default="low")  # low | medium | high
     review_status: Mapped[str] = mapped_column(String(60), nullable=False, default="Не підтверджено")  # candidate | confirmed | dismissed
     rule_applied: Mapped[str | None] = mapped_column(String(100), nullable=True)  # яке правило колізій застосовано

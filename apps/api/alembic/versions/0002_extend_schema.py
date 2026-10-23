@@ -66,7 +66,7 @@ def upgrade() -> None:
         sa.Column("direction", sa.String(length=20), nullable=False, server_default=sa.text("'source_to_target'")),
         sa.Column("evidence_text", sa.Text(), nullable=True),
         sa.Column("resolution_status", sa.String(length=40), nullable=False, server_default=sa.text("'unresolved'")),
-        sa.Column("source_meta_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("source_meta_json", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.ForeignKeyConstraint(["source_provision_id"], ["legal_provisions.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["target_provision_id"], ["legal_provisions.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["target_document_id"], ["legal_documents.id"], ondelete="SET NULL"),
