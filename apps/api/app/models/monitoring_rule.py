@@ -11,7 +11,7 @@ class UserMonitoringRule(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "user_monitoring_rules"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        "user_id", UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        "user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     rule_type: Mapped[str] = mapped_column(String(60), nullable=False)
     rule_configuration: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

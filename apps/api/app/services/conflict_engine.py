@@ -1,11 +1,16 @@
 """
-Детектор колізій (ТЗ v2, розділ 3).
+Детектор колізій (ТЗ v3, розділ B.6).
 
 Детермінований движок правил колізій:
-- HIERARCHY_CONFLICT — акт нижчого рівня противичить вищому
-- SAME_LEVEL_NEWER — дві норми одного рівня, побеждає новіша
-- DEAD_REFERENCE — посилання на акт/статтю, яких немає
-- GHOST_NORM — норма вимагає прийняти підзаконний акт, але його немає
+- HIERARCHY_CONFLICT — акт нижчого рівня юридичної сили противичить вищому (lex superior)
+- SPECIAL_VS_GENERAL — дві норми одного рівня, одна 특殊на, інша загальна
+- SAME_LEVEL_NEWER — однаковий рівень, побеждає новіша редакція (lex posterior)
+- DEAD_REFERENCE — посилання на акт/статтю, яких немає в базі
+- GHOST_NORM — закон вимагає прийняти підзаконний акт/порядок, але такого акта не існує
+- UNCONSTITUTIONAL — Конституційний Суд визнав норму неконституційною (лише за записом у constitutional_decision)
+- EXPIRING — тимчасова норма з датою або умовою закінчення дії (напр. «на час воєнного стану»)
+- CODE_DUPLICATION — однакові норми в різних кодексах/законах
+- EU_MISMATCH — розходження з директивою ЄС (етап 3)
 
 Результат — ConflictCandidate зі статусом candidate (потребує людської перевірки).
 """
@@ -220,3 +225,83 @@ class ConflictEngine:
                 candidates.append(c)
 
         return candidates
+
+    def detect_expiring(
+        self,
+        provision: LegalProvision,
+        document: LegalDocument,
+    ) -> ConflictCandidate | None:
+        """
+        Тимчасова норма з датою або умовою закінчення дії (EXPIRING).
+        Наприклад: «на період дії воєнного стану».
+        """
+        is_temp = getattr(document, 'is_temporary', False)
+        valid_until = getattr(document, 'valid_until_condition', None)
+        effective_to = None
+        try:
+            rev = provision.revision
+            if rev:
+                effective_to = rev.effective_to
+        except Exception:
+            pass
+
+        if not is_temp and not valid_until and not effective_to:
+            return None
+
+        reasons = []
+        if is_temp:
+            reasons.append("позначено як тимчасова (is_temporary=True)")
+        if valid_until:
+            reasons.append("умова закінчення: " + str(valid_until))
+        if effective_to:
+            reasons.append("дата втрати чинності: " + str(effective_to))
+
+        return ConflictCandidate(
+            provision_a_id=provision.id,
+            provision_b_id=provision.id,
+            conflict_type="EXPIRING",
+            evidence_json={
+                "document_title": document.title,
+                "is_temporary": is_temp,
+                "valid_until_condition": valid_until,
+                "effective_to": str(effective_to) if effective_to else None,
+                "reasons": reasons,
+            },
+            confidence="high",
+            review_status="Не підтверджено",
+            rule_applied="Тимчасова норма з датою/умовою закінчення дії",
+            winner_provision_id=None,
+            explanation=(
+                "Норма акта \u00ab" + document.title + "\u00bb є тимчасовою: " + ", ".join(reasons) + ". "
+                "Після закінчення терміну норма втрачає чинність."
+            ),
+        )
+
+    def detect_ghost_norm(
+        self,
+        provision: LegalProvision,
+        document: LegalDocument,
+        required_act_description: str,
+    ) -> ConflictCandidate | None:
+        """
+        Закон вимагає прийняти підзаконний акт/порядок, але такого акта не існує (GHOST_NORM).
+        required_act_description — опис того, що закон вимагає прийняти.
+        """
+        return ConflictCandidate(
+            provision_a_id=provision.id,
+            provision_b_id=provision.id,
+            conflict_type="GHOST_NORM",
+            evidence_json={
+                "document_title": document.title,
+                "provision_identifier": provision.provision_identifier,
+                "required_act_description": required_act_description,
+            },
+            confidence="medium",
+            review_status="Не підтверджено",
+            rule_applied="Закон вимагає прийняти акт, якого немає в базі",
+            winner_provision_id=None,
+            explanation=(
+                "Акт \u00ab" + document.title + "\u00bb (норма \u00ab" + provision.provision_identifier + "\u00bb) "
+                "вимагає прийняти: " + required_act_description + ". Такого акта не знайдено."
+            ),
+        )

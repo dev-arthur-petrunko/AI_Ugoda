@@ -11,7 +11,7 @@ class ContractAnalysis(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "contract_analyses"
 
     contract_document_id: Mapped[uuid.UUID] = mapped_column(
-        "contract_document_id", UUID(as_uuid=True), ForeignKey("contract_documents.id", ondelete="CASCADE"), nullable=False, index=True
+        "contract_document_id", String(36), ForeignKey("contract_documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     analysis_version: Mapped[int] = mapped_column(nullable=False, default=1)
     source_revision_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)

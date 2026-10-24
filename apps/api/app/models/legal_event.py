@@ -12,20 +12,20 @@ class LegalEvent(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "legal_events"
 
     source_document_id: Mapped[uuid.UUID | None] = mapped_column(
-        "source_document_id", UUID(as_uuid=True), ForeignKey("legal_documents.id", ondelete="SET NULL"), nullable=True, index=True
+        "source_document_id", String(36), ForeignKey("legal_documents.id", ondelete="SET NULL"), nullable=True, index=True
     )
     affected_document_id: Mapped[uuid.UUID] = mapped_column(
-        "affected_document_id", UUID(as_uuid=True), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False, index=True
+        "affected_document_id", String(36), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     source_event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     discovered_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     old_revision_id: Mapped[uuid.UUID | None] = mapped_column(
-        "old_revision_id", UUID(as_uuid=True), ForeignKey("document_revisions.id", ondelete="SET NULL"), nullable=True
+        "old_revision_id", String(36), ForeignKey("document_revisions.id", ondelete="SET NULL"), nullable=True
     )
     new_revision_id: Mapped[uuid.UUID | None] = mapped_column(
-        "new_revision_id", UUID(as_uuid=True), ForeignKey("document_revisions.id", ondelete="SET NULL"), nullable=True
+        "new_revision_id", String(36), ForeignKey("document_revisions.id", ondelete="SET NULL"), nullable=True
     )
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     processing_status: Mapped[str] = mapped_column(String(40), nullable=False, default="pending")

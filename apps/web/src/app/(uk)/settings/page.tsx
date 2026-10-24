@@ -1,6 +1,6 @@
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Settings } from "lucide.react";
+import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
   return (

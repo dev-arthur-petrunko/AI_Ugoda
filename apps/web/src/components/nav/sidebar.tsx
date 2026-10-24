@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Search, Clock, FileCheck, BarChart3, ShieldAlert, Link as LinkIcon, Eye, Folder, Upload, Settings, ChevronLeft, Menu, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { name: "Огляд", href: "/uk/dashboard", icon: LayoutDashboard },
@@ -85,10 +86,10 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <button key={item.href} asChild className={cls("flex flex-col items-center gap-1.5 rounded-md p-2.5 transition-colors", isActive ? "bg-gold/10 text-gold-bright" : "text-text-secondary/60 hover:bg-elevated hover:text-text")}>
+                <Button key={item.href} asChild variant="ghost" className={cls("flex flex-col items-center gap-1.5 rounded-md p-2.5 transition-colors w-full", isActive ? "bg-gold/10 text-gold-bright" : "text-text-secondary/60 hover:bg-elevated hover:text-text")}>
                   <Link href={item.href}><Icon className="h-5 w-5" /></Link>
                   <span className="text-xs">{item.name}</span>
-                </button>
+                </Button>
               );
             })}
           </motion.div>

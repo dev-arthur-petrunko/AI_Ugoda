@@ -11,10 +11,10 @@ class UserBookmark(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "user_bookmarks"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        "user_id", UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        "user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     document_id: Mapped[uuid.UUID] = mapped_column(
-        "document_id", UUID(as_uuid=True), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False, index=True
+        "document_id", String(36), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provision_identifier: Mapped[str | None] = mapped_column(String(200), nullable=True)
     note: Mapped[str | None] = mapped_column(String(1000), nullable=True)

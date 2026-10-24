@@ -78,8 +78,10 @@ export default function DashboardPage() {
           <CardContent className="py-2 space-y-2">
             {quickActions.map((a) => (
               <Button key={a.label} asChild variant="ghost" size="lg" className="w-full justify-start text-left border-b border-gold/10 last:border-0">
-                <a.icon className="mr-2 h-4 w-4 text-crema" />
-                {a.label}
+                <Link href={a.href}>
+                  <a.icon className="mr-2 h-4 w-4 text-crema" />
+                  {a.label}
+                </Link>
               </Button>
             ))}
           </CardContent>

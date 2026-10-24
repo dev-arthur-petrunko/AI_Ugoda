@@ -9,7 +9,7 @@ class AIAnalysis(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "ai_analyses"
 
     analysis_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    target_id: Mapped[str] = mapped_column("target_id", UUID(as_uuid=True), nullable=False, index=True)
+    target_id: Mapped[str] = mapped_column("target_id", String(36), nullable=False, index=True)
     model_provider: Mapped[str] = mapped_column(String(60), nullable=False)
     model_name: Mapped[str] = mapped_column(String(100), nullable=False)
     prompt_version: Mapped[str | None] = mapped_column(String(60), nullable=True)

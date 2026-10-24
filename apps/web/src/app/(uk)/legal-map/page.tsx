@@ -1,6 +1,6 @@
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Link as LinkIcon } from "lucide.react";
+import { Link as LinkIcon } from "lucide-react";
 
 export default function LegalMapPage() {
   return (

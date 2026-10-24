@@ -12,7 +12,7 @@ class LegalProvision(Base, TimestampMixin, UUIDMixin):
 
     document_revision_id: Mapped[uuid.UUID] = mapped_column(
         "document_revision_id",
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("document_revisions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -24,7 +24,7 @@ class LegalProvision(Base, TimestampMixin, UUIDMixin):
     subpoint_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     parent_provision_id: Mapped[uuid.UUID | None] = mapped_column(
         "parent_provision_id",
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("legal_provisions.id", ondelete="SET NULL"),
         nullable=True,
     )

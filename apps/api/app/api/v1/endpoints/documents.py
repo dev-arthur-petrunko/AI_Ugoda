@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
+from app.services.search import SearchService, SearchFilters
 
 router = APIRouter()
 
@@ -12,36 +13,89 @@ router = APIRouter()
 @router.get("")
 async def list_documents(
     q: Optional[str] = Query(None, description="Пошуковий запит (назва/текст/номер)"),
+    document_type: Optional[str] = Query(None, description="Тип документа"),
+    status: Optional[str] = Query(None, description="Статус документа"),
+    issuing_authority: Optional[str] = Query(None, description="Орган, що видав"),
+    adoption_date_from: Optional[str] = Query(None, description="Дата прийняття від (YYYY-MM-DD)"),
+    adoption_date_to: Optional[str] = Query(None, description="Дата прийняття до (YYYY-MM-DD)"),
+    legal_force_level: Optional[str] = Query(None, description="Рівень юридичної сили"),
+    only_current: bool = Query(True, description="Тільки актуальні редакції"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    from app.models.legal_document import LegalDocument
-
-    query = db.query(LegalDocument)
-    if q:
-        like = f"%{q}%"
-        query = query.filter(LegalDocument.title.ilike(like))
-    total = query.count()
-    items = query.offset(offset).limit(limit).all()
+    search_service = SearchService(db)
+    filters = SearchFilters(
+        document_type=document_type,
+        status=status,
+        issuing_authority=issuing_authority,
+        adoption_date_from=adoption_date_from,
+        adoption_date_to=adoption_date_to,
+        legal_force_level=legal_force_level,
+        only_current=only_current,
+    )
+    items, total = search_service.search(q or "", filters, limit, offset)
     return {
         "total": total,
         "limit": limit,
         "offset": offset,
         "items": [
             {
-                "id": str(d.id),
-                "source_id": d.source_id,
-                "title": d.title,
-                "document_type": d.document_type,
-                "document_number": d.document_number,
-                "adoption_date": d.adoption_date.isoformat() if d.adoption_date else None,
-                "issuing_authority": d.issuing_authority,
-                "current_known_status": d.current_known_status,
-                "source_url": d.source_url,
+                "id": item.id,
+                "source_id": item.source_id,
+                "title": item.title,
+                "document_type": item.document_type,
+                "document_number": item.document_number,
+                "adoption_date": item.adoption_date,
+                "issuing_authority": item.issuing_authority,
+                "current_known_status": item.current_known_status,
+                "source_url": item.source_url,
+                "revision_id": item.revision_id,
+                "revision_date": item.revision_date,
             }
-            for d in items
+            for item in items
+        ],
+    }
+
+
+@router.get("/suggestions")
+async def get_suggestions(
+    q: str = Query(..., min_length=2, description="Часткова назва для автозаповнення"),
+    limit: int = Query(10, ge=1, le=20),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    search_service = SearchService(db)
+    suggestions = search_service.get_suggestions(q, limit)
+    return {"suggestions": suggestions}
+
+
+@router.get("/search/by-provision")
+async def search_by_provision(
+    provision_ref: str = Query(..., description="Посилання на статтю (напр. 'Стаття 15')"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    search_service = SearchService(db)
+    items = search_service.search_by_provision(provision_ref)
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "source_id": item.source_id,
+                "title": item.title,
+                "document_type": item.document_type,
+                "document_number": item.document_number,
+                "adoption_date": item.adoption_date,
+                "issuing_authority": item.issuing_authority,
+                "current_known_status": item.current_known_status,
+                "source_url": item.source_url,
+                "revision_id": item.revision_id,
+                "revision_date": item.revision_date,
+                "matched_provision": item.matched_provision,
+            }
+            for item in items
         ],
     }
 
@@ -54,9 +108,7 @@ async def get_document(
 ):
     from app.models.legal_document import LegalDocument
     from app.models.document_revision import DocumentRevision
-    from uuid import UUID
-
-    doc = db.get(LegalDocument, UUID(document_id))
+    doc = db.get(LegalDocument, document_id)
     if not doc:
         from fastapi import HTTPException
 
@@ -83,8 +135,8 @@ async def get_document(
                 "id": str(r.id),
                 "revision_label": r.revision_label,
                 "revision_date": r.revision_date.isoformat() if r.revision_date else None,
-                "valid_from": r.valid_from.isoformat() if r.valid_from else None,
-                "valid_to": r.valid_to.isoformat() if r.valid_to else None,
+                "effective_from": r.effective_from.isoformat() if r.effective_from else None,
+                "effective_to": r.effective_to.isoformat() if r.effective_to else None,
                 "source_url": r.source_url,
                 "source_checksum": r.source_checksum,
                 "verification_status": r.verification_status,

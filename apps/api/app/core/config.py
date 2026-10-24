@@ -1,8 +1,11 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_BASE_DIR / ".env"), env_file_encoding="utf-8", extra="ignore")
 
     # Application
     APP_NAME: str = "AI Ugoda"

@@ -97,7 +97,7 @@ def test_dead_reference(svc) -> None:
     link = LegalLink(
         source_provision_id=prov.id,
         link_type="refers_to",
-        target_provision_id=uuid.UUID("00000000-0000-0000-0000-000000000999"),
+        target_provision_id="00000000-0000-0000-0000-000000000999",
         evidence_text="Частина 1 статті 10 посилається на статтю 999",
     )
 

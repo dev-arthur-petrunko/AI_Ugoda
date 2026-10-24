@@ -11,10 +11,10 @@ class ConflictCandidate(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "conflict_candidates"
 
     provision_a_id: Mapped[uuid.UUID] = mapped_column(
-        "provision_a_id", UUID(as_uuid=True), ForeignKey("legal_provisions.id", ondelete="CASCADE"), nullable=False, index=True
+        "provision_a_id", String(36), ForeignKey("legal_provisions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provision_b_id: Mapped[uuid.UUID] = mapped_column(
-        "provision_b_id", UUID(as_uuid=True), ForeignKey("legal_provisions.id", ondelete="CASCADE"), nullable=False, index=True
+        "provision_b_id", String(36), ForeignKey("legal_provisions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     conflict_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)  # HIERARCHY_CONFLICT, SPECIAL_VS_GENERAL, SAME_LEVEL_NEWER, DEAD_REFERENCE, GHOST_NORM, CODE_DUPLICATION, UNCONSTITUTIONAL, EXPIRING, EU_MISMATCH
     evidence_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -22,7 +22,7 @@ class ConflictCandidate(Base, TimestampMixin, UUIDMixin):
     review_status: Mapped[str] = mapped_column(String(60), nullable=False, default="Не підтверджено")  # candidate | confirmed | dismissed
     rule_applied: Mapped[str | None] = mapped_column(String(100), nullable=True)  # яке правило колізій застосовано
     winner_provision_id: Mapped[uuid.UUID | None] = mapped_column(
-        "winner_provision_id", UUID(as_uuid=True), ForeignKey("legal_provisions.id", ondelete="SET NULL"), nullable=True
+        "winner_provision_id", String(36), ForeignKey("legal_provisions.id", ondelete="SET NULL"), nullable=True
     )
     explanation: Mapped[str | None] = mapped_column(Text, nullable=True)  # чitse объяснення з посиланням на правило
 

@@ -13,7 +13,7 @@ class DocumentRevision(Base, TimestampMixin, UUIDMixin):
 
     legal_document_id: Mapped[uuid.UUID] = mapped_column(
         "legal_document_id",
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("legal_documents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

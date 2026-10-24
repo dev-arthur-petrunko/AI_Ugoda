@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -24,6 +24,7 @@ from app.models.legal_link import LegalLink
 from app.models.legal_provision import LegalProvision
 from app.models.document_revision import DocumentRevision
 from app.models.legal_force_level import LegalForceLevel
+from app.services.parser import ParsedDocument
 
 
 def _checksum(content: bytes | str) -> str:
@@ -38,6 +39,21 @@ class ImportService:
 
     def __enter__(self) -> "ImportService":
         return self
+
+    def init_force_levels(self) -> None:
+        """Ініціалізує рівні юридичної сили за ТЗ v2."""
+        levels = [
+            (1, "Конституція України", "Найвища правова сила", 100),
+            (2, "Міжнародні договори", "Згода на обов'язковість дала ВР", 90),
+            (3, "Закони та Кодекси", "Законодавча влада", 80),
+            (4, "Постанови Верховної Ради", "Акти ВР", 70),
+            (5, "Укази Президента", "Президентські декрети", 60),
+            (6, "Постанови КМУ", "Виконавча влада", 50),
+            (7, "Накази міністерств", "Міністерства та відомства", 40),
+            (8, "Місцеві акти", "Органи місцевого самоврядування", 30),
+        ]
+        for level, name, desc, weight in levels:
+            self.upsert_force_level(level, name, desc, weight)
 
     def upsert_force_level(
         self, level: int, name: str, description: str | None = None, priority_weight: int = 0
@@ -222,31 +238,128 @@ class ImportService:
         self.db.refresh(row)
         return row
 
-    def create_conflict_candidate(
-        self,
-        *,
-        provision_a: LegalProvision,
-        provision_b: LegalProvision,
-        conflict_type: str,
-        evidence_json: dict,
-        confidence: str = "low",
-        review_status: str = "Не підтверджено",
-        rule_applied: str | None = None,
-        winner_provision: LegalProvision | None = None,
-        explanation: str | None = None,
-    ) -> ConflictCandidate:
-        row = ConflictCandidate(
-            provision_a_id=provision_a.id,
-            provision_b_id=provision_b.id,
-            conflict_type=conflict_type,
-            evidence_json=evidence_json,
-            confidence=confidence,
-            review_status=review_status,
-            rule_applied=rule_applied,
-            winner_provision_id=winner_provision.id if winner_provision else None,
-            explanation=explanation,
+    def import_parsed_document(self, parsed: ParsedDocument) -> LegalDocument:
+        """Імпортує повний розпарсений документ з ParsedDocument."""
+        # 1. Визначаємо рівень юридичної сили
+        force_level = self._map_document_type_to_force_level(parsed.document_type)
+
+        # 2. Створюємо/оновлюємо документ
+        doc = self.upsert_document(
+            source_id=parsed.source_id,
+            title=parsed.title,
+            document_type=parsed.document_type,
+            document_number=parsed.document_number,
+            nreg=parsed.nreg,
+            adoption_date=parsed.adoption_date,
+            issuing_authority=parsed.issuing_authority,
+            legal_force_level=force_level,
+            current_known_status=parsed.current_known_status or "Статус потребує перевірки",
+            source_url=parsed.source_url,
+            source_metadata_json={"parser_version": parsed.parser_version},
+            is_temporary=parsed.is_temporary,
+            valid_until_condition=parsed.valid_until_condition,
         )
-        self.db.add(row)
-        self.db.commit()
-        self.db.refresh(row)
-        return row
+
+        # 3. Створюємо редакцію
+        from datetime import datetime, date
+        effective_from = None
+        if parsed.effective_date:
+            try:
+                effective_from = datetime.strptime(parsed.effective_date, "%Y-%m-%d").date()
+            except Exception:
+                pass
+
+        # Об'єднуємо всі положення в нормалізований текст
+        all_text = self._flatten_provisions_text(parsed.provisions)
+        raw_payload = {
+            "source_url": parsed.source_url,
+            "source_id": parsed.source_id,
+            "parser_version": parsed.parser_version,
+            "raw_html_checksum": parsed.raw_html_checksum,
+            "provisions_count": len(self._collect_all_provisions(parsed.provisions)),
+        }
+
+        revision = self.upsert_revision(
+            document=doc,
+            revision_label="Оригінал",
+            revision_date=effective_from or parsed.adoption_date,
+            effective_from=effective_from,
+            effective_to=None,
+            source_url=parsed.source_url,
+            raw_payload=raw_payload,
+            normalized_text=all_text,
+            parser_version=parsed.parser_version,
+            imported_at=datetime.utcnow(),
+            verification_status="parsed",
+        )
+
+        # 4. Імпортуємо положення рекурсивно
+        self._import_provisions_recursive(revision, parsed.provisions)
+
+        return doc
+
+    def _map_document_type_to_force_level(self, doc_type: str) -> str:
+        """Мапує тип документа на рівень юридичної сили."""
+        type_lower = (doc_type or "").lower()
+        if "конституц" in type_lower:
+            return "1"  # Конституція
+        elif "кодекс" in type_lower:
+            return "3"  # Закони та Кодекси
+        elif "закон" in type_lower:
+            return "3"  # Закони
+        elif "постанова" in type_lower and "верховн" in type_lower:
+            return "4"  # Постанови ВР
+        elif "указ" in type_lower and "президент" in type_lower:
+            return "5"  # Укази Президента
+        elif "постанова" in type_lower and "кабінет" in type_lower:
+            return "6"  # Постанови КМУ
+        elif "наказ" in type_lower:
+            return "7"  # Накази міністерств
+        return "8"  # Інші
+
+    def _collect_all_provisions(self, provisions: list) -> list:
+        """Збирає всі положення з ієрархії в плоский список."""
+        result = []
+        for p in provisions:
+            result.append(p)
+            if p.children:
+                result.extend(self._collect_all_provisions(p.children))
+        return result
+
+    def _flatten_provisions_text(self, provisions: list) -> str:
+        """Об'єднує тексти всіх положень в один рядок."""
+        texts = []
+        for p in self._collect_all_provisions(provisions):
+            if p.text:
+                texts.append(p.text)
+        return "\n\n".join(texts)
+
+    def _import_provisions_recursive(self, revision: DocumentRevision, provisions: list, parent_id: str | None = None):
+        """Рекурсивно імпортує положення з ієрархією."""
+        for p in provisions:
+            # Визначаємо article/part/point/subpoint номери
+            article_num = part_num = point_num = subpoint_num = None
+            if p.level == "article":
+                article_num = p.number
+            elif p.level == "part":
+                part_num = p.number
+            elif p.level == "point":
+                point_num = p.number
+            elif p.level == "subpoint":
+                subpoint_num = p.number
+
+            prov = self.upsert_provision(
+                revision=revision,
+                provision_identifier=p.identifier,
+                article_number=article_num,
+                part_number=part_num,
+                point_number=point_num,
+                subpoint_number=subpoint_num,
+                heading=p.title,
+                text=p.text,
+                ordinal=p.ordinal,
+                parent_provision_id=parent_id,
+            )
+
+            if p.children:
+                self._import_provisions_recursive(revision, p.children, prov.id)

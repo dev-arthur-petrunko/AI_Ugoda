@@ -1,30 +1,18 @@
 """
-Коннектори офіційних джерел законодавства України (ТЗ v2, розділ 1).
-https://zakon.rada.gov.ua
-
-Пріоритет джерел:
-1. data.rada.gov.ua — відкриті дані ВР (CSV/JSON/XML, оновлення щогодини).
-2. zakon.rada.gov.ua — ІПС «Законодавство Україлені» (запасне, HTML).
-
-Правило: парсинг HTML — лише запасний варіант. Перед написанням коннектора агент
-обов'язково перевіряє вручну, що адреса відповідає, формат збігається і які є ліміти,
-і записує результат в docs/SOURCES_VERIFIED.md.
-
-Єдине правило проєкту: ніколи не вигадуємо закон. Джерела не знайдено — пишемо
-«не знайдено в базі».
+РљРѕРЅРЅРµРєС‚РѕСЂРё РѕС„С–С†С–Р№РЅРёС… РґР¶РµСЂРµР» Р·Р°РєРѕРЅРѕРґР°РІСЃС‚РІР° РЈРєСЂР°С—РЅРё (РўР— v2, СЂРѕР·РґС–Р» 1).
 """
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from app.core.config import settings
+from app.services.parser import ZakonRadaParser, ParsedDocument, extract_references
 
 
 @dataclass
@@ -35,34 +23,33 @@ class SourceCheck:
     note: str
 
 
-
 class DataRadaConnector:
-    """Коннектор для data.rada.gov.ua — відкриті дані законодавства ВР."""
+    """РљРѕРЅРЅРµРєС‚РѕСЂ РґР»СЏ data.rada.gov.ua вЂ” РІС–РґРєСЂРёС‚С– РґР°РЅС– Р·Р°РєРѕРЅРѕРґР°РІСЃС‚РІР° Р’Р ."""
 
     def __init__(self) -> None:
         self.base_url = settings.DATA_RADA_BASE_URL.rstrip("/")
         self.laws_list_url = settings.DATA_RADA_LAWS_LIST_URL
         self.timeout = settings.DATA_RADA_REQUEST_TIMEOUT
         self.max_retries = settings.DATA_RADA_MAX_RETRIES
-        self._client: httpx.AsyncClient | None = None
+        self._client = None
 
-    async def _client(self) -> httpx.AsyncClient:
+    async def _get_client(self):
         if self._client is None:
+            import httpx
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
-                headers={"User-Agent": "AI Ugoda legal-intelligence connector (+contact via admin)"},
+                headers={"User-Agent": "AI Ugoda legal-intelligence connector"}
             )
         return self._client
 
-    async def close(self) -> None:
+    async def close(self):
         if self._client is not None:
             await self._client.aclose()
             self._client = None
 
-    async def check_source(self) -> SourceCheck:
-        """Перевіряє досяжність data.rada.gov.ua/ogd/zak/laws/list.json."""
+    async def check_source(self):
         try:
-            client = await self._client()
+            client = await self._get_client()
             resp = await client.get(self.laws_list_url, follow_redirects=True)
             ct = resp.headers.get("content-type", "")
             is_json = "json" in ct.lower()
@@ -76,7 +63,7 @@ class DataRadaConnector:
                     else "data.rada.gov.ua reachable but unexpected content-type"
                 ),
             )
-        except Exception as exc:  # pragma: no cover - network failure path
+        except Exception as exc:
             return SourceCheck(
                 reachable=False,
                 status_code=None,
@@ -84,10 +71,9 @@ class DataRadaConnector:
                 note=f"data.rada.gov.ua unreachable: {exc!s}",
             )
 
-    async def fetch_laws_list(self) -> dict[str, Any]:
-        """Отримує індекс набору даних законів (list.json). Повертає сыру відповідь."""
-        client = await self._client()
-        last_error: str | None = None
+    async def fetch_laws_list(self):
+        client = await self._get_client()
+        last_error = None
         for attempt in range(self.max_retries):
             try:
                 resp = await client.get(self.laws_list_url, follow_redirects=True)
@@ -97,48 +83,46 @@ class DataRadaConnector:
                     "source_url": self.laws_list_url,
                     "status_code": resp.status_code,
                     "content_type": resp.headers.get("content-type"),
-                    "checksum": _checksum(resp.content),
                     "data": data,
                     "verified": True,
-                    "note": "Отримано індекс набору законів з data.rada.gov.ua",
                 }
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 last_error = str(exc)
                 await asyncio.sleep(2 ** attempt)
         return {
             "source_url": self.laws_list_url,
             "verified": False,
             "error": last_error,
-            "note": "Не вдалося отримати індекс законів з data.rada.gov.ua після спроб",
         }
 
-
-
 class ZakonRadaConnector:
+    """РљРѕРЅРЅРµРєС‚РѕСЂ РґР»СЏ zakon.rada.gov.ua (Р†РџРЎ В«Р—Р°РєРѕРЅРѕРґР°РІСЃС‚РІРѕ РЈРєСЂР°С—Р»РµРЅРёВ»)."""
+
     def __init__(self) -> None:
         self.base_url = settings.ZAKON_RADA_BASE_URL.rstrip("/")
         self.rss_url = settings.ZAKON_RADA_RSS_URL
         self.timeout = settings.ZAKON_RADA_REQUEST_TIMEOUT
         self.max_retries = settings.ZAKON_RADA_MAX_RETRIES
-        self._client: httpx.AsyncClient | None = None
+        self._client = None
+        self.parser = ZakonRadaParser(base_url=self.base_url)
 
-    async def _client(self) -> httpx.AsyncClient:
+    async def _get_client(self):
         if self._client is None:
+            import httpx
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
-                headers={"User-Agent": "AI Ugoda legal-intelligence connector (+contact via admin)"},
+                headers={"User-Agent": "AI Ugoda legal-intelligence connector"}
             )
         return self._client
 
-    async def close(self) -> None:
+    async def close(self):
         if self._client is not None:
             await self._client.aclose()
             self._client = None
 
-    async def check_source(self) -> SourceCheck:
-        """Перевіряє досяжність zakon.rada.gov.ua і чистого RSS-XML."""
+    async def check_source(self):
         try:
-            client = await self._client()
+            client = await self._get_client()
             resp = await client.get(self.rss_url, follow_redirects=True)
             ct = resp.headers.get("content-type", "")
             return SourceCheck(
@@ -150,7 +134,7 @@ class ZakonRadaConnector:
                     "raw RSS-XML not confirmed as a stable public API."
                 ),
             )
-        except Exception as exc:  # pragma: no cover - network failure path
+        except Exception as exc:
             return SourceCheck(
                 reachable=False,
                 status_code=None,
@@ -159,13 +143,13 @@ class ZakonRadaConnector:
             )
 
     @staticmethod
-    def _checksum(content: bytes) -> str:
+    def _checksum(content):
+        import hashlib
         return hashlib.sha256(content).hexdigest()
 
-    async def fetch_document_page(self, source_url: str) -> dict[str, Any]:
-        """Завантажує сторінку окремого акта з zakon.rada.gov.ua (запасне джерело)."""
-        client = await self._client()
-        last_error: str | None = None
+    async def fetch_document_page(self, source_url):
+        client = await self._get_client()
+        last_error = None
         for attempt in range(self.max_retries):
             try:
                 resp = await client.get(source_url, follow_redirects=True)
@@ -179,35 +163,72 @@ class ZakonRadaConnector:
                     "raw_html": html[:200000],
                     "parser_version": "html-fetch-v1",
                     "verified": True,
-                    "note": "Завантажено сторінку акта з zakon.rada.gov.ua; структурний парсинг TBD",
+                    "note": "Р—Р°РІР°РЅС‚Р°Р¶РµРЅРѕ СЃС‚РѕСЂС–РЅРєСѓ Р°РєС‚Р° Р· zakon.rada.gov.ua",
                 }
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 last_error = str(exc)
                 await asyncio.sleep(2 ** attempt)
         return {
             "source_url": source_url,
             "verified": False,
             "error": last_error,
-            "note": "Сторінку акта не вдалося завантажити після спроб",
+            "note": "РЎС‚РѕСЂС–РЅРєСѓ Р°РєС‚Р° РЅРµ РІРґР°Р»РѕСЃСЏ Р·Р°РІР°РЅС‚Р°Р¶РёС‚Рё РїС–СЃР»СЏ СЃРїСЂРѕР±",
         }
 
+    async def parse_document(self, source_url):
+        result = await self.fetch_document_page(source_url)
+        if not result.get("verified"):
+            return None
 
-        """Одиночна синхронізація (скелет MVP). Не пише в БД без побічних ефектів."""
-        check = await self.check_source()
-        await self.close()
-        return {
-            "source": self.base_url,
-            "rss_url": self.rss_url,
-            "source_check": {
-                "reachable": check.reachable,
-                "status_code": check.status_code,
-                "content_type": check.content_type,
-                "note": check.note,
-            },
-            "discovered": 0,
-            "imported": 0,
-            "updated": 0,
-            "skipped": 0,
-            "failed": 0,
-            "note": "MVP skeleton: коннектор перевіряє досяжність; імпорт у БД — на Фазі 2",
-        }
+        html = result["raw_html"]
+        try:
+            parsed = self.parser.parse(html, source_url)
+            return parsed
+        except Exception as exc:
+            print(f"Parser error for {source_url}: {exc}")
+            return None
+
+async def sync_once():
+    from app.services.import_service import ImportService
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+    import_service = ImportService(db)
+
+    import_service.init_force_levels()
+
+    test_urls = [
+        "https://zakon.rada.gov.ua/laws/main/254%D0%BA/96-%D0%B2%D1%80",
+        "https://zakon.rada.gov.ua/laws/main/435-15",
+        "https://zakon.rada.gov.ua/laws/main/2341-14",
+        "https://zakon.rada.gov.ua/laws/main/807-20",
+        "https://zakon.rada.gov.ua/laws/main/2755-17",
+    ]
+
+    connector = ZakonRadaConnector()
+    stats = {"discovered": 0, "imported": 0, "updated": 0, "skipped": 0, "failed": 0}
+
+    for url in test_urls:
+        stats["discovered"] += 1
+        try:
+            parsed = await connector.parse_document(url)
+            if parsed:
+                import_service.import_parsed_document(parsed)
+                stats["imported"] += 1
+                print(f"вњ“ Imported: {parsed.title}")
+            else:
+                stats["failed"] += 1
+                print(f"вњ— Failed to parse: {url}")
+        except Exception as exc:
+            stats["failed"] += 1
+            print(f"вњ— Error importing {url}: {exc}")
+        await asyncio.sleep(1)
+
+    await connector.close()
+    db.close()
+
+    return {
+        "source": "zakon.rada.gov.ua",
+        "stats": stats,
+        "note": "Р†РјРїРѕСЂС‚ 5 С‚РµСЃС‚РѕРІРёС… Р°РєС‚С–РІ С‡РµСЂРµР· HTML-РїР°СЂСЃРёРЅРі",
+    }

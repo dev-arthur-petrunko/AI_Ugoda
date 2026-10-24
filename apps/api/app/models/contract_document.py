@@ -12,10 +12,10 @@ class ContractDocument(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "contract_documents"
 
     owner_id: Mapped[uuid.UUID] = mapped_column(
-        "owner_id", UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        "owner_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     workspace_id: Mapped[uuid.UUID | None] = mapped_column(
-        "workspace_id", UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        "workspace_id", String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     original_filename: Mapped[str] = mapped_column(String(500), nullable=False)
     secure_storage_key: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)

@@ -53,9 +53,8 @@ services:
       - CONTRACT_RETENTION_DAYS=90
     ports:
       - "8000:8000"
-    volumes:
-      - ./apps/api:/app
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    # volumes removed for production-like build; for dev hot-reload use: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
@@ -70,14 +69,12 @@ services:
     depends_on:
       - api
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=http://api:8000
       - NEXT_PUBLIC_APP_ENV=development
     ports:
       - "3000:3000"
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-    command: sh -c "npm install && npm run dev"
+    # volumes removed for production-like build
+    command: ["npm", "run", "dev"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 15s
