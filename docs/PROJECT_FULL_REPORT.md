@@ -92,3 +92,72 @@ Key variables (see `.env` / `.env.example`):
 
 ---
 Generated automatically as project completion report.
+
+
+## 12. Detailed Process (Chronological)
+
+### Phase A — PostgreSQL migration
+- Set up PostgreSQL 16 via Docker Compose.
+- Switched `.env` to PostgreSQL URL.
+- Created Alembic migrations `0001`, `0002`.
+- Migrated SQLite data to PostgreSQL in Python (psycopg2 + sqlite3), with boolean coercion.
+- Verified `/api/v1/stats`, `/documents`, pytest (7/7), frontend (200).
+
+### Phase B — Cleanup & lint
+- Applied ruff cleanup to 0 errors.
+- Added `apps/api/pyproject.toml` ruff config (documented ignores B008, F821).
+- Fixed `alembic.ini` script_location for Docker portability.
+- Rebuilt/restarted stack; health OK.
+- Pushed to origin/main.
+
+### Phase C — Auth & rate limiting (Stage 4)
+- Added `AUTH_DISABLED`, `RATE_LIMIT_PER_MINUTE`.
+- Updated `get_current_user` for auth flags.
+- Added rate limiting middleware (per IP, in-memory).
+- Added startup checks for production SECRET_KEY/AUTH_DISABLED.
+
+### Phase D — pgvector & FTS (Stage 5)
+- Switched Postgres image to `pgvector/pgvector:pg16`.
+- Added migration `0003_pgvector_fts`:
+  - extensions `vector`, `pg_trgm`
+  - `embedding vector(1536)` + HNSW index
+  - `search_vector tsvector` generated column + GIN index
+- Updated `LegalProvision` model with dialect-aware types (SQLite tests preserved).
+
+### Phase E — Error fixing & verification
+- Fixed Docker healthchecks (removed curl dependency; use Python/Node).
+- Unified duplicate CSS design tokens into a single `:root`.
+- Verified ruff 0, pytest 7/7, frontend build, Docker health.
+
+### Phase F — Documentation
+- Added `docs/PROJECT_FULL_REPORT.md` with architecture, DB, auth, search, frontend, Docker, testing, env, limitations, changelog.
+
+## 13. Completed (Done)
+- PostgreSQL migration complete; Alembic head applied.
+- Data migrated (5 docs, 10 revisions, 14 provisions).
+- Auth flags + rate limiting implemented.
+- pgvector + FTS schema implemented.
+- Docker stack healthy.
+- ruff 0 errors.
+- pytest 7/7.
+- Frontend build successful.
+- CSS tokens unified.
+- Docker healthchecks fixed.
+- Documentation added.
+
+## 14. Not Completed / Blocked
+- Ukrainian morphology for FTS (needs Hunspell dictionaries).
+- Embedding generation (column exists, data not populated).
+- Full wiring of 9 informational pages to API (requires new backend endpoints).
+- Deeper CSS token alias cleanup (`--cream` vs `--text`).
+- Production auth (JWT/OAuth) not fully implemented; currently simple token/flag.
+- Redis usage for rate limiting (currently in-memory).
+
+## 15. Errors Fixed
+- SQLite→Postgres type/ID mismatches (unified to String(36)).
+- Boolean coercion during data migration.
+- Alembic `script_location` relative path for Docker.
+- Ruff errors (B008/F821 documented).
+- Docker healthcheck failures due to missing `curl`.
+- CSS duplicate `:root` blocks.
+- Model compatibility with SQLite tests (Vector/TSVECTOR types).
