@@ -30,7 +30,7 @@ input[type=range]{width:100%;margin-top:18px;accent-color:var(--gold)}
 @media(max-width:860px){.app{grid-template-columns:1fr}.side{position:fixed;inset:0 auto 0 0;width:280px;margin:0;border-radius:0 20px 20px 0;transform:translateX(-110%);transition:transform .35s}.side.open{transform:none}.menu{display:block}.hero{grid-template-columns:1fr;padding:26px}.chip{display:none}.main{padding:10px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.u{stroke-dashoffset:0}.pt{scale:1}}
 
-:root{--black:#080605;--cocoa:#1B120C;--choc:#2E1D12;--milk:#4A2E1C;--gold:#C9A24B;--gold2:#E8C871;--champ:#F3E6BC;--cream:#F1E8D8;--muted:#B3A28A;--ok:#7FA67A;--mid:#E0A23B;--bad:#C4574A;color-scheme:dark}
+:root{--black:#080605;--cocoa:#1B120C;--choc:#2E1D12;--milk:#4A2E1C;--gold:#C9A24B;--gold2:#E8C871;--gold-bright:#E8C871;--gold-deep:#8F6F2B;--champ:#F3E6BC;--cream:#F1E8D8;--muted:#B3A28A;--ok:#7FA67A;--mid:#E0A23B;--bad:#C4574A;--bg:#080605;--bg-secondary:#120D09;--sidebar:rgba(12,10,8,0.72);--elevated:rgba(36,25,18,0.55);--card:rgba(36,25,18,0.45);--mocha:#3A2A1E;--crema:#6B4E37;--text:#EFE6D6;--text-secondary:#A89983;--border:rgba(232,200,113,0.16);--success:#7FA67A;--warning:#E0A23B;--error:#C4574A;--info:#6B4E37;--font-inter:var(--font-inter),system-ui,sans-serif;--font-playfair:var(--font-playfair),"Playfair Display",serif;--font-source-serif:var(--font-source-serif),"Source Serif 4",serif;--font-jetbrains-mono:var(--font-jetbrains-mono),"JetBrains Mono",monospace;color-scheme:dark}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
 body{font:16px/1.6 Inter,system-ui,sans-serif;color:var(--cream);overflow:hidden;background:radial-gradient(1200px 800px at 12% -10%,#3A2416,transparent 60%),radial-gradient(900px 700px at 100% 25%,#2A1A0F,transparent 55%),var(--black)}
@@ -82,29 +82,6 @@ h2{font:600 24px/1.2 'Playfair Display',serif;color:var(--champ)}
 .btn:hover{transform:translateY(-2px)}
 
 
-:root {
-  --bg: #080605;
-  --bg-secondary: #120D09;
-  --sidebar: rgba(12, 10, 8, 0.72);
-  --elevated: rgba(36, 25, 18, 0.55);
-  --card: rgba(36, 25, 18, 0.45);
-  --mocha: #3A2A1E;
-  --crema: #6B4E37;
-  --gold: #C9A24B;
-  --gold-bright: #E8C871;
-  --gold-deep: #8F6F2B;
-  --text: #EFE6D6;
-  --text-secondary: #A89983;
-  --border: rgba(232, 200, 113, 0.16);
-  --success: #7FA67A;
-  --warning: #E0A23B;
-  --error: #C4574A;
-  --info: #6B4E37;
-  --font-inter: var(--font-inter), system-ui, sans-serif;
-  --font-playfair: var(--font-playfair), "Playfair Display", serif;
-  --font-source-serif: var(--font-source-serif), "Source Serif 4", serif;
-  --font-jetbrains-mono: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
-}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

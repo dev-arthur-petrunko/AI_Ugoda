@@ -56,7 +56,7 @@ services:
     # volumes removed for production-like build; for dev hot-reload use: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -76,7 +76,7 @@ services:
     # volumes removed for production-like build
     command: ["npm", "run", "dev"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 10
