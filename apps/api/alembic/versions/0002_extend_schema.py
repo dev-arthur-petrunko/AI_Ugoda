@@ -22,10 +22,10 @@ def upgrade() -> None:
     # legal_force_levels — довідник рівнів юридичної сили
     op.create_table(
         "legal_force_levels",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("level", sa.Integer(), nullable=False, unique=True, index=True),
+        sa.Column("level", sa.Integer(), nullable=False, unique=True),
         sa.Column("name", sa.String(length=100), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("priority_weight", sa.Integer(), nullable=False, server_default=sa.text("0")),
@@ -34,7 +34,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_legal_force_levels_level"), "legal_force_levels", ["level"], unique=True)
 
     # legal_documents: додаємо поля nreg, legal_force_level, is_temporary, valid_until_condition
-    op.add_column("legal_documents", sa.Column("nreg", sa.String(length=100), nullable=True, index=True))
+    op.add_column("legal_documents", sa.Column("nreg", sa.String(length=100), nullable=True))
     op.add_column("legal_documents", sa.Column("legal_force_level", sa.String(length=40), nullable=True))
     op.add_column("legal_documents", sa.Column("is_temporary", sa.Boolean(), nullable=False, server_default=sa.text("false")))
     op.add_column("legal_documents", sa.Column("valid_until_condition", sa.String(length=500), nullable=True))
@@ -47,7 +47,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_document_revisions_effective_to"), "document_revisions", ["effective_to"])
 
     # legal_provisions: адреса норми (article/part/point/subpoint)
-    op.add_column("legal_provisions", sa.Column("article_number", sa.String(length=50), nullable=True, index=True))
+    op.add_column("legal_provisions", sa.Column("article_number", sa.String(length=50), nullable=True))
     op.add_column("legal_provisions", sa.Column("part_number", sa.String(length=50), nullable=True))
     op.add_column("legal_provisions", sa.Column("point_number", sa.String(length=50), nullable=True))
     op.add_column("legal_provisions", sa.Column("subpoint_number", sa.String(length=50), nullable=True))
@@ -56,13 +56,13 @@ def upgrade() -> None:
     # legal_links — зв'язки між положеннями/актами
     op.create_table(
         "legal_links",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("source_provision_id", postgresql.UUID(as_uuid=True), nullable=False, index=True),
-        sa.Column("target_provision_id", postgresql.UUID(as_uuid=True), nullable=True, index=True),
-        sa.Column("target_document_id", postgresql.UUID(as_uuid=True), nullable=True, index=True),
-        sa.Column("link_type", sa.String(length=60), nullable=False, index=True),
+        sa.Column("source_provision_id", sa.String(36), nullable=False),
+        sa.Column("target_provision_id", sa.String(36), nullable=True, index=True),
+        sa.Column("target_document_id", sa.String(36), nullable=True, index=True),
+        sa.Column("link_type", sa.String(length=60), nullable=False),
         sa.Column("direction", sa.String(length=20), nullable=False, server_default=sa.text("'source_to_target'")),
         sa.Column("evidence_text", sa.Text(), nullable=True),
         sa.Column("resolution_status", sa.String(length=40), nullable=False, server_default=sa.text("'unresolved'")),
@@ -77,7 +77,7 @@ def upgrade() -> None:
 
     # conflict_candidates: додаємо rule_applied, winner_provision_id, explanation
     op.add_column("conflict_candidates", sa.Column("rule_applied", sa.String(length=100), nullable=True))
-    op.add_column("conflict_candidates", sa.Column("winner_provision_id", postgresql.UUID(as_uuid=True), nullable=True, index=True))
+    op.add_column("conflict_candidates", sa.Column("winner_provision_id", sa.String(36), nullable=True, index=True))
     op.add_column("conflict_candidates", sa.Column("explanation", sa.Text(), nullable=True))
     op.create_foreign_key("fk_conflict_candidates_winner_provision", "conflict_candidates", "legal_provisions", ["winner_provision_id"], ["id"], ondelete="SET NULL")
 

@@ -19,9 +19,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
     op.create_table(
         "users",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("email", sa.String(length=255), nullable=False),
@@ -37,7 +38,7 @@ def upgrade() -> None:
 
     op.create_table(
         "legal_documents",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("source_id", sa.String(length=100), nullable=False),
@@ -64,10 +65,10 @@ def upgrade() -> None:
 
     op.create_table(
         "document_revisions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("legal_document_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("legal_document_id", sa.String(36), nullable=False),
         sa.Column("revision_label", sa.String(length=100), nullable=True),
         sa.Column("revision_date", sa.Date(), nullable=True),
         sa.Column("valid_from", sa.Date(), nullable=True),
@@ -87,12 +88,12 @@ def upgrade() -> None:
 
     op.create_table(
         "legal_provisions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("document_revision_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("document_revision_id", sa.String(36), nullable=False),
         sa.Column("provision_identifier", sa.String(length=100), nullable=False),
-        sa.Column("parent_provision_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("parent_provision_id", sa.String(36), nullable=True),
         sa.Column("heading", sa.String(length=500), nullable=True),
         sa.Column("text", sa.Text(), nullable=True),
         sa.Column("ordinal", sa.Integer(), nullable=True),
@@ -106,17 +107,17 @@ def upgrade() -> None:
 
     op.create_table(
         "legal_events",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("source_document_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("affected_document_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("source_document_id", sa.String(36), nullable=True),
+        sa.Column("affected_document_id", sa.String(36), nullable=False),
         sa.Column("event_type", sa.String(length=80), nullable=False),
         sa.Column("source_event_date", sa.Date(), nullable=True),
         sa.Column("effective_date", sa.Date(), nullable=True),
         sa.Column("discovered_at", sa.Date(), nullable=True),
-        sa.Column("old_revision_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("new_revision_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("old_revision_id", sa.String(36), nullable=True),
+        sa.Column("new_revision_id", sa.String(36), nullable=True),
         sa.Column("source_url", sa.Text(), nullable=True),
         sa.Column("processing_status", sa.String(length=40), nullable=False, server_default=sa.text("'pending'")),
         sa.Column("ai_summary_status", sa.String(length=40), nullable=False, server_default=sa.text("'pending'")),
@@ -130,11 +131,11 @@ def upgrade() -> None:
 
     op.create_table(
         "legal_references",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("source_provision_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("target_document_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("source_provision_id", sa.String(36), nullable=False),
+        sa.Column("target_document_id", sa.String(36), nullable=True),
         sa.Column("target_provision_identifier", sa.String(length=200), nullable=True),
         sa.Column("reference_type", sa.String(length=80), nullable=False),
         sa.Column("resolution_status", sa.String(length=40), nullable=False, server_default=sa.text("'unresolved'")),
@@ -147,11 +148,11 @@ def upgrade() -> None:
 
     op.create_table(
         "ai_analyses",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("analysis_type", sa.String(length=80), nullable=False),
-        sa.Column("target_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("target_id", sa.String(36), nullable=False),
         sa.Column("model_provider", sa.String(length=60), nullable=False),
         sa.Column("model_name", sa.String(length=100), nullable=False),
         sa.Column("prompt_version", sa.String(length=60), nullable=True),
@@ -166,11 +167,11 @@ def upgrade() -> None:
 
     op.create_table(
         "conflict_candidates",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("provision_a_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("provision_b_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("provision_a_id", sa.String(36), nullable=False),
+        sa.Column("provision_b_id", sa.String(36), nullable=False),
         sa.Column("conflict_type", sa.String(length=100), nullable=False),
         sa.Column("evidence_json", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("confidence", sa.String(length=40), nullable=False, server_default=sa.text("'low'")),
@@ -184,10 +185,10 @@ def upgrade() -> None:
 
     op.create_table(
         "user_monitoring_rules",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("rule_type", sa.String(length=60), nullable=False),
         sa.Column("rule_configuration", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("delivery_preferences", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
@@ -200,11 +201,11 @@ def upgrade() -> None:
 
     op.create_table(
         "user_bookmarks",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("document_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("document_id", sa.String(36), nullable=False),
         sa.Column("provision_identifier", sa.String(length=200), nullable=True),
         sa.Column("note", sa.String(length=1000), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -216,11 +217,11 @@ def upgrade() -> None:
 
     op.create_table(
         "contract_documents",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("owner_id", sa.String(36), nullable=False),
+        sa.Column("workspace_id", sa.String(36), nullable=True),
         sa.Column("original_filename", sa.String(length=500), nullable=False),
         sa.Column("secure_storage_key", sa.String(length=200), nullable=False),
         sa.Column("content_type", sa.String(length=100), nullable=False),
@@ -237,10 +238,10 @@ def upgrade() -> None:
 
     op.create_table(
         "contract_analyses",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("contract_document_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("contract_document_id", sa.String(36), nullable=False),
         sa.Column("analysis_version", sa.Integer(), nullable=False, server_default=sa.text("1")),
         sa.Column("source_revision_ids", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("structured_result_json", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
@@ -252,13 +253,13 @@ def upgrade() -> None:
 
     op.create_table(
         "audit_logs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", sa.String(36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("actor_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("actor_id", sa.String(36), nullable=True),
         sa.Column("action", sa.String(length=100), nullable=False),
         sa.Column("target_type", sa.String(length=80), nullable=True),
-        sa.Column("target_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("target_id", sa.String(36), nullable=True),
         sa.Column("metadata_json", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("ip_address", sa.String(length=64), nullable=True),
         sa.PrimaryKeyConstraint("id"),
