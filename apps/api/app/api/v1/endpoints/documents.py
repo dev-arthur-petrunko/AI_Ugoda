@@ -1,24 +1,23 @@
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.services.search import SearchService, SearchFilters
+from app.core.database import get_db
+from app.services.search import SearchFilters, SearchService
 
 router = APIRouter()
 
 
 @router.get("")
 async def list_documents(
-    q: Optional[str] = Query(None, description="Пошуковий запит (назва/текст/номер)"),
-    document_type: Optional[str] = Query(None, description="Тип документа"),
-    status: Optional[str] = Query(None, description="Статус документа"),
-    issuing_authority: Optional[str] = Query(None, description="Орган, що видав"),
-    adoption_date_from: Optional[str] = Query(None, description="Дата прийняття від (YYYY-MM-DD)"),
-    adoption_date_to: Optional[str] = Query(None, description="Дата прийняття до (YYYY-MM-DD)"),
-    legal_force_level: Optional[str] = Query(None, description="Рівень юридичної сили"),
+    q: str | None = Query(None, description="Пошуковий запит (назва/текст/номер)"),
+    document_type: str | None = Query(None, description="Тип документа"),
+    status: str | None = Query(None, description="Статус документа"),
+    issuing_authority: str | None = Query(None, description="Орган, що видав"),
+    adoption_date_from: str | None = Query(None, description="Дата прийняття від (YYYY-MM-DD)"),
+    adoption_date_to: str | None = Query(None, description="Дата прийняття до (YYYY-MM-DD)"),
+    legal_force_level: str | None = Query(None, description="Рівень юридичної сили"),
     only_current: bool = Query(True, description="Тільки актуальні редакції"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -106,8 +105,8 @@ async def get_document(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    from app.models.legal_document import LegalDocument
     from app.models.document_revision import DocumentRevision
+    from app.models.legal_document import LegalDocument
     doc = db.get(LegalDocument, document_id)
     if not doc:
         from fastapi import HTTPException
@@ -148,8 +147,8 @@ async def get_document(
 
 @router.get("/{document_id}/provisions")
 async def get_provisions(document_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from app.models.legal_document import LegalDocument
     from app.models.document_revision import DocumentRevision
+    from app.models.legal_document import LegalDocument
     from app.models.legal_provision import LegalProvision
     doc = db.get(LegalDocument, document_id)
     if not doc:
@@ -166,8 +165,8 @@ async def get_provisions(document_id: str, db: Session = Depends(get_db), curren
 
 @router.get("/{document_id}/revisions")
 async def get_revisions(document_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from app.models.legal_document import LegalDocument
     from app.models.document_revision import DocumentRevision
+    from app.models.legal_document import LegalDocument
     doc = db.get(LegalDocument, document_id)
     if not doc:
         from fastapi import HTTPException
@@ -179,8 +178,9 @@ async def get_revisions(document_id: str, db: Session = Depends(get_db), current
 @router.get("/{document_id}/at")
 async def get_at(document_id: str, date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     from datetime import date as ddate
-    from app.models.legal_document import LegalDocument
+
     from app.models.document_revision import DocumentRevision
+    from app.models.legal_document import LegalDocument
     doc = db.get(LegalDocument, document_id)
     if not doc:
         from fastapi import HTTPException
@@ -196,9 +196,8 @@ async def get_at(document_id: str, date: str, db: Session = Depends(get_db), cur
         if r.effective_from and r.effective_from <= target and (r.effective_to is None or r.effective_to >= target):
             chosen = r
             break
-    if chosen is None:
-        if revs:
-            chosen = sorted(revs, key=lambda r: r.effective_from or ddate.min)[-1]
+    if chosen is None and revs:
+        chosen = max(revs, key=lambda r: r.effective_from or ddate.min)
     if chosen is None:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Редакцію не знайдено")

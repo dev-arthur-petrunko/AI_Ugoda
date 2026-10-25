@@ -1,11 +1,12 @@
-from __future__ import annotations  
-  
-import hashlib  
-import re  
-from dataclasses import dataclass, field  
-from typing import Any  
-  
-from bs4 import BeautifulSoup 
+from __future__ import annotations
+
+import hashlib
+import re
+from dataclasses import dataclass, field
+from typing import Any, ClassVar
+
+from bs4 import BeautifulSoup
+
 
 @dataclass
 class ProvisionNode:
@@ -15,7 +16,7 @@ class ProvisionNode:
     title: str | None
     text: str
     parent_identifier: str | None = None
-    children: list["ProvisionNode"] = field(default_factory=list)
+    children: list[ProvisionNode] = field(default_factory=list)
     ordinal: int = 0
     content_checksum: str = ""
 
@@ -46,7 +47,7 @@ class ParsedDocument:
 class ZakonRadaParser:
     """Парсер HTML-сторінок zakon.rada.gov.ua."""
 
-    SELECTORS = {
+    SELECTORS: ClassVar[dict[str, str]] = {
         "title": "h1.law-title, h1.title, .document-title h1",
         "meta_table": "table.law-meta, table.doc-info, .law-info table",
         "sections": "div.law-section, div.section, .document-body > div",
@@ -56,7 +57,7 @@ class ZakonRadaParser:
         "subpoints": "div.law-subpoint, div.subpoint, p.subpoint",
     }
 
-    PATTERNS = {
+    PATTERNS: ClassVar[dict[str, re.Pattern]] = {
         "article": re.compile(r"^\s*Стаття\s+(\d+[\w\-]*)", re.IGNORECASE),
         "part": re.compile(r"^\s*Частина\s+(перша|друга|третя|четверта|п'ята|шоста|сьома|восьма|дев'ята|десята|\d+)", re.IGNORECASE),
         "point": re.compile(r"^\s*Пункт\s+(\d+[\w\-]*)", re.IGNORECASE),
@@ -175,7 +176,7 @@ class ZakonRadaParser:
             if m:
                 try:
                     return formatter(m)
-                except Exception:
+                except Exception:  # noqa: BLE001, S112
                     continue
         return None
 

@@ -10,15 +10,12 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from datetime import date
 
 from app.core.database import SessionLocal
-from app.models.legal_document import LegalDocument
-from app.models.document_revision import DocumentRevision
-from app.models.legal_provision import LegalProvision
-from app.models.legal_force_level import LegalForceLevel
 from app.services.import_service import ImportService
 
 FORCE_LEVELS = [

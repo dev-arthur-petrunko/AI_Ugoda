@@ -7,12 +7,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from dataclasses import dataclass
-from typing import Any
-
-import httpx
 
 from app.core.config import settings
-from app.services.parser import ZakonRadaParser, ParsedDocument, extract_references
+from app.services.parser import ZakonRadaParser
 
 
 @dataclass
@@ -63,7 +60,7 @@ class DataRadaConnector:
                     else "data.rada.gov.ua reachable but unexpected content-type"
                 ),
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return SourceCheck(
                 reachable=False,
                 status_code=None,
@@ -86,7 +83,7 @@ class DataRadaConnector:
                     "data": data,
                     "verified": True,
                 }
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 last_error = str(exc)
                 await asyncio.sleep(2 ** attempt)
         return {
@@ -134,7 +131,7 @@ class ZakonRadaConnector:
                     "raw RSS-XML not confirmed as a stable public API."
                 ),
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return SourceCheck(
                 reachable=False,
                 status_code=None,
@@ -144,7 +141,6 @@ class ZakonRadaConnector:
 
     @staticmethod
     def _checksum(content):
-        import hashlib
         return hashlib.sha256(content).hexdigest()
 
     async def fetch_document_page(self, source_url):
@@ -165,7 +161,7 @@ class ZakonRadaConnector:
                     "verified": True,
                     "note": "Р—Р°РІР°РЅС‚Р°Р¶РµРЅРѕ СЃС‚РѕСЂС–РЅРєСѓ Р°РєС‚Р° Р· zakon.rada.gov.ua",
                 }
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 last_error = str(exc)
                 await asyncio.sleep(2 ** attempt)
         return {
@@ -184,13 +180,13 @@ class ZakonRadaConnector:
         try:
             parsed = self.parser.parse(html, source_url)
             return parsed
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"Parser error for {source_url}: {exc}")
             return None
 
 async def sync_once():
-    from app.services.import_service import ImportService
     from app.core.database import SessionLocal
+    from app.services.import_service import ImportService
 
     db = SessionLocal()
     import_service = ImportService(db)
@@ -219,7 +215,7 @@ async def sync_once():
             else:
                 stats["failed"] += 1
                 print(f"вњ— Failed to parse: {url}")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             stats["failed"] += 1
             print(f"вњ— Error importing {url}: {exc}")
         await asyncio.sleep(1)

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -63,10 +62,10 @@ class ConflictEngine:
         priority_b = self._force_priority(doc_b)
 
         if priority_a < priority_b:
-            winner, loser = provision_a, provision_b
+            winner = provision_a
             winner_doc, loser_doc = doc_a, doc_b
         elif priority_b < priority_a:
-            winner, loser = provision_b, provision_a
+            winner = provision_b
             winner_doc, loser_doc = doc_b, doc_a
         else:
             return None  # однаковий рівень — не hierarchy конфікт
@@ -116,11 +115,13 @@ class ConflictEngine:
             return None
 
         if rev_a_date > rev_b_date:
-            winner, loser = provision_a, provision_b
+            winner = provision_a
             winner_date, loser_date = rev_a_date, rev_b_date
+            loser = provision_b
         else:
-            winner, loser = provision_b, provision_a
+            winner = provision_b
             winner_date, loser_date = rev_b_date, rev_a_date
+            loser = provision_a
 
         return ConflictCandidate(
             provision_a_id=provision_a.id,
@@ -242,7 +243,7 @@ class ConflictEngine:
             rev = provision.revision
             if rev:
                 effective_to = rev.effective_to
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         if not is_temp and not valid_until and not effective_to:

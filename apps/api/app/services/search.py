@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -73,7 +72,6 @@ class SearchService:
         return res, total
 
     def _normalize(self, q: str) -> str:
-        import re
         q = re.sub(r"[^a-zA-Z0-9_\\s\"-]", " ", q, flags=re.UNICODE)
         q = re.sub(r"\s+", " ", q).strip()
         return q
@@ -146,7 +144,6 @@ class SearchService:
         return [row[0] for row in rows]
 
     def search_by_provision(self, provision_ref: str):
-        import re
         match = re.search(r"(?:стаття|article)\s+(\d+[\w\-]*)", provision_ref, re.IGNORECASE)
         if not match:
             return []

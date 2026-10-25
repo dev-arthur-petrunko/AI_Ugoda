@@ -1,11 +1,11 @@
-﻿from typing import Generator
+﻿from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal, get_db
 from app.core.config import settings
+from app.core.database import get_db
 
 reusable_oauth2 = HTTPBearer(auto_error=False)
 

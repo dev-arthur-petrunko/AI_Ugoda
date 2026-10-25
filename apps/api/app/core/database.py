@@ -1,9 +1,9 @@
 from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.models.base import Base
 
 # Resolve absolute DB path (works from any working directory)
 _db_url = settings.DATABASE_URL

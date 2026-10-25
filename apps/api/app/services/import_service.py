@@ -11,19 +11,16 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, datetime
-from typing import Any
+from datetime import UTC, date, datetime
 
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models.base import Base
-from app.models.conflict_candidate import ConflictCandidate
+from app.models.document_revision import DocumentRevision
 from app.models.legal_document import LegalDocument
+from app.models.legal_force_level import LegalForceLevel
 from app.models.legal_link import LegalLink
 from app.models.legal_provision import LegalProvision
-from app.models.document_revision import DocumentRevision
-from app.models.legal_force_level import LegalForceLevel
 from app.services.parser import ParsedDocument
 
 
@@ -37,7 +34,7 @@ class ImportService:
     def __init__(self, db: Session | None = None) -> None:
         self.db = db or SessionLocal()
 
-    def __enter__(self) -> "ImportService":
+    def __enter__(self) -> ImportService:  # noqa: PYI034
         return self
 
     def init_force_levels(self) -> None:
@@ -261,12 +258,11 @@ class ImportService:
         )
 
         # 3. Створюємо редакцію
-        from datetime import datetime, date
         effective_from = None
         if parsed.effective_date:
             try:
-                effective_from = datetime.strptime(parsed.effective_date, "%Y-%m-%d").date()
-            except Exception:
+                effective_from = date.fromisoformat(parsed.effective_date)
+            except Exception:  # noqa: BLE001, S110
                 pass
 
         # Об'єднуємо всі положення в нормалізований текст
@@ -289,7 +285,7 @@ class ImportService:
             raw_payload=raw_payload,
             normalized_text=all_text,
             parser_version=parsed.parser_version,
-            imported_at=datetime.utcnow(),
+            imported_at=datetime.now(UTC),
             verification_status="parsed",
         )
 

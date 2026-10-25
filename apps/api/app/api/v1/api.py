@@ -1,6 +1,6 @@
 ﻿from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, documents, sync, stats
+from app.api.v1.endpoints import documents, health, stats, sync
 
 api_router = APIRouter()
 api_router.include_router(health.router, prefix='/health', tags=['health'])

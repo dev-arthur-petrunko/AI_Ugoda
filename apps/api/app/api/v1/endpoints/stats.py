@@ -1,12 +1,12 @@
 ﻿from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.models.legal_document import LegalDocument
+from app.core.database import get_db
 from app.models.document_revision import DocumentRevision
-from app.models.legal_provision import LegalProvision
+from app.models.legal_document import LegalDocument
 from app.models.legal_link import LegalLink
+from app.models.legal_provision import LegalProvision
 
 router = APIRouter()
 
