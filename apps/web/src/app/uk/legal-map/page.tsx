@@ -13,7 +13,7 @@ export default function LegalMapPage() {
         title="Граф ще не побудований"
         description="Вузли та ребра з\'являться після імпорту актів та вилучення посилань між положеннями."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

@@ -1,4 +1,4 @@
-from typing import Generator
+﻿from typing import Generator
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -17,14 +17,15 @@ def get_db_session() -> Generator[Session, None, None]:
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(reusable_oauth2),
 ):
-    # MVP placeholder: real JWT verification is implemented in Phase 7/8.
-    # Returns None when no credentials are provided (public read endpoints remain open).
+    # Development: anonymous access allowed only in dev (AUTH_DISABLED behaviour).
     if credentials is None:
-        return None
+        if settings.APP_ENV == "development":
+            return {"id": "dev-user", "email": "dev@aiugoda.local", "is_superuser": True, "role": "admin"}
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     token = credentials.credentials
-    if token != settings.SECRET_KEY and settings.APP_ENV == "production":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-        )
-    return {"id": "dev-user", "email": "dev@aiugoda.local", "is_superuser": settings.APP_ENV != "production"}
+    # Reject default secret in production
+    if settings.APP_ENV == "production" and token == "dev-secret-change-me":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid SECRET_KEY")
+    if settings.APP_ENV == "production" and token != settings.SECRET_KEY:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")
+    return {"id": "dev-user", "email": "dev@aiugoda.local", "is_superuser": True, "role": "admin"}

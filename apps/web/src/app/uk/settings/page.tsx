@@ -13,7 +13,7 @@ export default function SettingsPage() {
         title="Налаштування"
         description="Сторінка налаштувань буде додана на наступному етапі."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

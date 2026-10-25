@@ -13,7 +13,7 @@ export default function ChangesPage() {
         title="Лента змін ще порожня"
         description="Виявлені зміни зʼявляться після імпорту ревізій з zakon.rada.gov.ua. Кожна подія містить посилання на джерело та дату відкриття."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

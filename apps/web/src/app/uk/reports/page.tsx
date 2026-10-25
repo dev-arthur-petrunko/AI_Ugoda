@@ -13,7 +13,7 @@ export default function ReportsPage() {
         title="Немає звітів"
         description="Звіти генеруються на основі реальних записів і цитувань."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

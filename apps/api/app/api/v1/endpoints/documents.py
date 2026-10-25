@@ -144,3 +144,62 @@ async def get_document(
             for r in revisions
         ],
     }
+
+
+@router.get("/{document_id}/provisions")
+async def get_provisions(document_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from app.models.legal_document import LegalDocument
+    from app.models.document_revision import DocumentRevision
+    from app.models.legal_provision import LegalProvision
+    doc = db.get(LegalDocument, document_id)
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Документ не знайдено")
+    rev = db.query(DocumentRevision).filter(DocumentRevision.legal_document_id == doc.id).order_by(DocumentRevision.revision_date.desc().nullslast()).first()
+    if not rev:
+        return {"document_id": document_id, "revision_id": None, "items": []}
+    provs = db.query(LegalProvision).filter(LegalProvision.document_revision_id == rev.id).order_by(LegalProvision.ordinal.asc().nullslast()).all()
+    def node(p):
+        return {"id": str(p.id), "parent_id": str(p.parent_provision_id) if p.parent_provision_id else None, "identifier": p.provision_identifier, "article_number": p.article_number, "heading": p.heading, "text": p.text, "ordinal": p.ordinal}
+    return {"document_id": document_id, "revision_id": str(rev.id), "items": [node(p) for p in provs]}
+
+
+@router.get("/{document_id}/revisions")
+async def get_revisions(document_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from app.models.legal_document import LegalDocument
+    from app.models.document_revision import DocumentRevision
+    doc = db.get(LegalDocument, document_id)
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Документ не знайдено")
+    revisions = db.query(DocumentRevision).filter(DocumentRevision.legal_document_id == doc.id).order_by(DocumentRevision.revision_date.desc().nullslast()).all()
+    return {"document_id": document_id, "items": [{"id": str(r.id), "label": r.revision_label, "revision_date": r.revision_date.isoformat() if r.revision_date else None, "effective_from": r.effective_from.isoformat() if r.effective_from else None, "effective_to": r.effective_to.isoformat() if r.effective_to else None, "source_url": r.source_url, "verification_status": r.verification_status} for r in revisions]}
+
+
+@router.get("/{document_id}/at")
+async def get_at(document_id: str, date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from datetime import date as ddate
+    from app.models.legal_document import LegalDocument
+    from app.models.document_revision import DocumentRevision
+    doc = db.get(LegalDocument, document_id)
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Документ не знайдено")
+    try:
+        target = ddate.fromisoformat(date)
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Невірний формат дати (YYYY-MM-DD)")
+    revs = db.query(DocumentRevision).filter(DocumentRevision.legal_document_id == doc.id).all()
+    chosen = None
+    for r in revs:
+        if r.effective_from and r.effective_from <= target and (r.effective_to is None or r.effective_to >= target):
+            chosen = r
+            break
+    if chosen is None:
+        if revs:
+            chosen = sorted(revs, key=lambda r: r.effective_from or ddate.min)[-1]
+    if chosen is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Редакцію не знайдено")
+    return {"document_id": document_id, "date": date, "revision_id": str(chosen.id), "effective_from": chosen.effective_from.isoformat() if chosen.effective_from else None, "effective_to": chosen.effective_to.isoformat() if chosen.effective_to else None}

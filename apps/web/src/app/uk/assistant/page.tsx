@@ -13,7 +13,7 @@ export default function AssistantPage() {
         title="Немає досліджень"
         description="Задайте правове питання, щоб отримати відповідь із цитуваннями статей zakon.rada.gov.ua."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

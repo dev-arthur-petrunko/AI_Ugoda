@@ -13,7 +13,7 @@ export default function MonitoringPage() {
         title="Активних правил моніторингу немає"
         description="Створіть правило, щоб отримувати повідомлення про нові редакції та зміни чинності."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

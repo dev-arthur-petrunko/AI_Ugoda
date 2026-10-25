@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 
 export function Topbar({ onMenuToggle }: { onMenuToggle: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gold/10 bg-sidebar/95 backdrop-blur px-4">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gold/10 bg-sidebar/95 backdrop-blur-[22px] px-4">
       <div className="flex items-center gap-3">
         <MobileSidebarTrigger />
         <div className="hidden md:flex w-[420px]">

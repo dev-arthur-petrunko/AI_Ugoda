@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+﻿from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import get_current_user
 from app.services.connector import DataRadaConnector, ZakonRadaConnector
@@ -8,7 +8,8 @@ router = APIRouter()
 
 @router.post("/run")
 async def run_sync(current_user=Depends(get_current_user)):
-    """Запускає синхронізацію з обох джерел (data.rada.gov.ua основне, zakon.rada.gov.ua запасне)."""
+    if not current_user or not current_user.get("is_superuser"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
     results = {}
 
     data_connector = DataRadaConnector()

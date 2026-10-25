@@ -11,7 +11,7 @@ const config: Config = {
     extend: {
       colors: {
         // Black · Coffee · Gold палитра (ТЗ v2, розділ 7.1)
-        obsidian: "#0B0907",     // основний фон
+        obsidian: "#080605",     // основний фон
         espresso: "#14100C",     // фон секцій
         coffee: "#241912",       // карточки
         mocha: "#3A2A1E",        // карточки на hover, розділювачі
@@ -24,7 +24,7 @@ const config: Config = {
         "risk-low": "#7FA67A",   // риск низький (приглушений зелений)
         "risk-mid": "#E0A23B",   // риск середній
         "risk-high": "#C4574A",  // риск високий (кирбиновий червоний)
-        bg: "#0B0907",
+        bg: "#080605",
         "bg-secondary": "#14100C",
         sidebar: "#0C0D10",
         elevated: "#241912",
@@ -40,6 +40,9 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         serif: ["var(--font-playfair)", "Playfair Display", "serif"],
+        display: ["var(--font-playfair)", "Playfair Display", "serif"],
+        "source-serif": ["var(--font-source-serif)", "Source Serif 4", "serif"],
+        mono: ["var(--font-jetbrains-mono)", "JetBrains Mono", "monospace"],
       },
       borderRadius: {
         md: "8px",

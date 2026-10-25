@@ -13,7 +13,7 @@ export default function ContractsPage() {
         title="Немає завантажених договорів"
         description="Договори зберігаються приватно, лише для власника, та не потрапляють у спільний пошуковий індекс."
         actionLabel="Перейти на дашборд"
-        actionHref="/uk/dashboard"
+        actionHref="/uk"
       />
     </PageShell>
   );

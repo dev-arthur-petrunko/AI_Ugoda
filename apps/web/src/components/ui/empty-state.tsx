@@ -20,7 +20,7 @@ export function EmptyState({ icon, title, description, actionLabel, actionHref }
       <h3 className="text-sm font-medium text-text">{title}</h3>
       <p className="text-xs text-text-secondary/60 mt-1 max-w-xs text-center">{description}</p>
       {actionLabel && actionHref && (
-        <a href={actionHref} className="mt-4 text-xs text-gold underline">
+        <a href={actionHref} className="mt-4 text-xs text-gold hover:underline">
           {actionLabel}
         </a>
       )}

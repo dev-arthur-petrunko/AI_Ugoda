@@ -6,9 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Search, Clock, FileCheck, BarChart3, ShieldAlert, Link as LinkIcon, Eye, Folder, Upload, Settings, ChevronLeft, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 
 const navItems = [
-  { name: "Огляд", href: "/uk/dashboard", icon: LayoutDashboard },
+  { name: "Огляд", href: "/uk", icon: LayoutDashboard },
   { name: "Пошук законодавства", href: "/uk/legislation", icon: Search },
   { name: "Нові закони та зміни", href: "/uk/changes", icon: Clock },
   { name: "Аналіз договорів", href: "/uk/contracts", icon: FileCheck },
@@ -32,9 +33,9 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
     <aside className="fixed left-0 top-0 z-40 h-screen border-r border-gold/10 bg-sidebar transition-all duration-300" style={{ width: collapsed ? 64 : 260 }} onMouseEnter={() => setHovered("expand")} onMouseLeave={() => setHovered(null)}>
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center justify-between border-b border-gold/10 px-4 shrink-0">
-          <Link href="/uk/dashboard" className="flex items-center gap-2.5">
-            <span className="block h-3 w-3 rounded-full bg-gold animate-pulse" />
-            <span className={collapsed ? "sr-only" : "text-lg font-bold text-gold-bright tracking-tight"}>AI Ugoda</span>
+          <Link href="/uk" className="flex items-center gap-2.5">
+            <Logo size={34} />
+            <span className={collapsed ? "sr-only" : "text-lg font-bold text-gold-bright tracking-tight font-playfair"}>AI Ugoda</span>
           </Link>
           {!collapsed && (
             <button className="rounded-md p-1.5 text-text-secondary hover:text-gold hover:bg-elevated" aria-label="Згорнути навігацію">
@@ -50,7 +51,8 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
             const isActive = pathname === item.href;
             return (
               <Link key={item.href} href={item.href} onMouseEnter={() => setHovered(item.href)} onMouseLeave={() => setHovered(null)}
-                className={cls("flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors", isActive ? "bg-gold/10 text-gold-bright border-r-2 border-gold" : "text-text-secondary/80 hover:bg-elevated hover:text-text")}>
+                className={cls("relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors", isActive ? "bg-gold/10 text-gold-bright" : "text-text-secondary/80 hover:bg-elevated hover:text-text")}>
+                {isActive && <span className="absolute left-0 top-1 bottom-1 w-1 rounded-r bg-gold-bright" />}
                 <Icon className={cls("h-5 w-5 shrink-0", isActive ? "text-gold" : "text-text-secondary/70")} />
                 {(collapsed || hovered !== item.href) && <span className="truncate">{item.name}</span>}
               </Link>
@@ -63,7 +65,8 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
             const isActive = pathname === item.href;
             return (
               <Link key={item.href} href={item.href} onMouseEnter={() => setHovered(item.href)} onMouseLeave={() => setHovered(null)}
-                className={cls("flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors", isActive ? "bg-error/10 text-error border-r-2 border-error" : "text-text-secondary/60 hover:bg-elevated hover:text-text")}>
+                className={cls("relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors", isActive ? "bg-error/10 text-error" : "text-text-secondary/60 hover:bg-elevated hover:text-text")}>
+                {isActive && <span className="absolute left-0 top-1 bottom-1 w-1 rounded-r bg-error" />}
                 <Icon className={cls("h-5 w-5 shrink-0", isActive ? "text-error" : "text-text-secondary/60")} />
                 {(collapsed || hovered !== item.href) && <span className="truncate">{item.name}</span>}
               </Link>

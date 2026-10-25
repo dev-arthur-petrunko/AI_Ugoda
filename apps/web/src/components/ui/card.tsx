@@ -10,7 +10,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
       role="region"
       aria-roledescription="card"
       className={cn(
-        "rounded-lg border border-gold/20 bg-card text-text transition-colors hover:border-gold/40",
+        "rounded-lg border border-gold/20 bg-card text-text transition-colors hover:border-gold/40 backdrop-blur-[22px]",
         className,
       )}
       {...props}

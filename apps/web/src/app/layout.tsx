@@ -1,5 +1,34 @@
 import type { Metadata } from "next";
+import { Playfair_Display, Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import "../styles/globals.css";
+
+const playfair = Playfair_Display({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-playfair",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-inter",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-source-serif",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "AI Ugoda — Юридична інтелектуальна платформа",
@@ -14,7 +43,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk" suppressHydrationWarning>
+    <html
+      lang="uk"
+      suppressHydrationWarning
+      className={`${playfair.variable} ${inter.variable} ${sourceSerif.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <link rel="icon" href="/favicon.ico" />
       </head>
