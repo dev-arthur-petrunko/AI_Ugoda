@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     MAX_UPLOAD_MB: int = 25
     STORAGE_PATH: str = "./data/uploads"
 
+    AUTH_DISABLED: bool = True
+    RATE_LIMIT_PER_MINUTE: int = 120
+
     # Retention
     CONTRACT_RETENTION_DAYS: int = 90
 

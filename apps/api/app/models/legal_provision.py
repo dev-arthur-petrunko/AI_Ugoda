@@ -1,9 +1,32 @@
 import uuid
+from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import ForeignKey, Integer, String, Text, TypeDecorator
+from sqlalchemy.dialects.postgresql import TSVECTOR as PG_TSVECTOR
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+
+class _VectorType(TypeDecorator):
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(Vector(1536))
+        return dialect.type_descriptor(Text())
+
+
+class _TSVectorType(TypeDecorator):
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_TSVECTOR())
+        return dialect.type_descriptor(Text())
 
 
 class LegalProvision(Base, TimestampMixin, UUIDMixin):
@@ -29,6 +52,8 @@ class LegalProvision(Base, TimestampMixin, UUIDMixin):
     )
     heading: Mapped[str | None] = mapped_column(String(500), nullable=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(_VectorType(), nullable=True)
+    search_vector: Mapped[str | None] = mapped_column(_TSVectorType(), nullable=True)
     ordinal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content_checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
