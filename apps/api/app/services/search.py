@@ -101,8 +101,13 @@ class SearchService:
         if filters.only_current:
             where.append("(r.effective_to IS NULL OR r.effective_to >= date('now'))")
         if q:
-            where.append("(d.title LIKE :fts OR r.normalized_text LIKE :fts OR p.text LIKE :fts)")
-            params["fts"] = f"%{q}%"
+            if self._is_postgres():
+                where.append("(p.search_vector @@ plainto_tsquery('ukrainian', :fts) OR d.title ILIKE :fts_like)")
+                params["fts"] = q
+                params["fts_like"] = f"%{q}%"
+            else:
+                where.append("(d.title LIKE :fts OR r.normalized_text LIKE :fts OR p.text LIKE :fts)")
+                params["fts"] = f"%{q}%"
         where_sql = " WHERE " + " AND ".join(where) if where else ""
         return base + where_sql + " ORDER BY rank DESC, d.adoption_date DESC LIMIT :limit OFFSET :offset", params
 
@@ -131,10 +136,22 @@ class SearchService:
         if filters.only_current:
             where.append("(r.effective_to IS NULL OR r.effective_to >= date('now'))")
         if q:
-            where.append("(d.title LIKE :fts OR r.normalized_text LIKE :fts OR p.text LIKE :fts)")
-            params["fts"] = f"%{q}%"
+            if self._is_postgres():
+                where.append("(p.search_vector @@ plainto_tsquery('ukrainian', :fts) OR d.title ILIKE :fts_like)")
+                params["fts"] = q
+                params["fts_like"] = f"%{q}%"
+            else:
+                where.append("(d.title LIKE :fts OR r.normalized_text LIKE :fts OR p.text LIKE :fts)")
+                params["fts"] = f"%{q}%"
         where_sql = " WHERE " + " AND ".join(where) if where else ""
         return base + where_sql, params
+
+    def _is_postgres(self) -> bool:
+        try:
+            bind = self.db.get_bind()
+            return bind.dialect.name == "postgresql"
+        except Exception:  # noqa: BLE001
+            return False
 
     def get_suggestions(self, partial: str, limit: int = 10):
         if len(partial) < 2:

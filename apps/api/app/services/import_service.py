@@ -158,6 +158,31 @@ class ImportService:
         imported_at: date | None = None,
         verification_status: str = "unverified",
     ) -> DocumentRevision:
+        row = None
+        if effective_from is not None:
+            row = (
+                self.db.query(DocumentRevision)
+                .filter(
+                    DocumentRevision.legal_document_id == document.id,
+                    DocumentRevision.effective_from == effective_from,
+                )
+                .first()
+            )
+        if row:
+            row.revision_label = revision_label
+            row.revision_date = revision_date
+            row.effective_to = effective_to
+            row.source_url = source_url
+            row.source_checksum = _checksum(raw_payload or "")
+            row.source_hash = _checksum(normalized_text or "")
+            row.original_content_location = source_url
+            row.normalized_text = normalized_text
+            row.parser_version = parser_version
+            row.imported_at = imported_at
+            row.verification_status = verification_status
+            self.db.commit()
+            self.db.refresh(row)
+            return row
         row = DocumentRevision(
             legal_document_id=document.id,
             revision_label=revision_label,
@@ -192,6 +217,27 @@ class ImportService:
         ordinal: int | None = None,
         parent_provision_id: str | None = None,
     ) -> LegalProvision:
+        row = (
+            self.db.query(LegalProvision)
+            .filter(
+                LegalProvision.document_revision_id == revision.id,
+                LegalProvision.provision_identifier == provision_identifier,
+            )
+            .first()
+        )
+        if row:
+            row.article_number = article_number
+            row.part_number = part_number
+            row.point_number = point_number
+            row.subpoint_number = subpoint_number
+            row.heading = heading
+            row.text = text
+            row.ordinal = ordinal
+            row.parent_provision_id = parent_provision_id
+            row.content_checksum = _checksum(text or "")
+            self.db.commit()
+            self.db.refresh(row)
+            return row
         row = LegalProvision(
             document_revision_id=revision.id,
             provision_identifier=provision_identifier,

@@ -1,0 +1,16 @@
+/* Logo (D15) */
+.lg-anim .lg-post, .lg-anim .lg-bm { stroke-dasharray: 1; stroke-dashoffset: 1; animation: lgdraw 1.2s .1s ease-out forwards; }
+.lg-anim .lg-fin, .lg-anim .lg-pan { transform-box: fill-box; transform-origin: center; scale: 0; animation: lgpop .6s cubic-bezier(.2,1.5,.4,1) forwards; }
+.lg-anim .lg-fin { animation-delay: 1s; }
+.lg-anim .lg-pan { animation-delay: 1.2s; }
+.lg-anim .lg-pan-r { animation-delay: 1.35s; }
+.lg-anim .lg-sw { transform-origin: 80px 40px; animation: lgset 2.4s 1.5s cubic-bezier(.3,0,.3,1) both; }
+.lg-ring { transform-origin: 100px 100px; animation: lgspin 60s linear infinite; }
+@keyframes lgdraw { to { stroke-dashoffset: 0; } }
+@keyframes lgpop { to { scale: 1; } }
+@keyframes lgspin { to { transform: rotate(360deg); } }
+@keyframes lgset { 0% { transform: rotate(-9deg); } 22% { transform: rotate(6deg); } 44% { transform: rotate(-3.2deg); } 66% { transform: rotate(1.4deg); } 84% { transform: rotate(-.5deg); } 100% { transform: rotate(0); } }
+.splash { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 18px; background: #080605; animation: splashout .45s 1.8s forwards; }
+.splash p { font: italic 500 22px var(--font-accent, Georgia), serif; color: #B3A28A; }
+@keyframes splashout { to { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .lg-anim *, .lg-ring, .splash { animation: none !important; } .lg-anim .lg-post, .lg-anim .lg-bm { stroke-dashoffset: 0; } .lg-anim .lg-fin, .lg-anim .lg-pan { scale: 1; } }

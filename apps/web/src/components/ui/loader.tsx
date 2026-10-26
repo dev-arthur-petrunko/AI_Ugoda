@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Logo } from "./logo";
+import { Logo } from "@/components/brand/Logo";
 
 export function Loader() {
   const [show, setShow] = useState(true);
@@ -19,7 +19,7 @@ export function Loader() {
       style={{ backgroundColor: "var(--bg)" }}
     >
       <div className="relative mb-6">
-        <Logo className="w-24 h-24 md:w-32 md:h-32" />
+        <Logo size={128} />
         <div className="absolute inset-0 bg-[linear-gradient(135deg,#8F6F2B_0%,#E8C871_45%,#C9A24B_60%,#6E5420_100%)] opacity-0 animate-[shimmer_2s_ease-in-out_infinite] rounded-full" />
       </div>
       <p className="text-sm text-cream-muted tracking-wider">AI Ugoda</p>

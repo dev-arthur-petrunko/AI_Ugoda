@@ -2,7 +2,7 @@ import uuid
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Integer, String, Text, TypeDecorator
+from sqlalchemy import ForeignKey, Integer, String, Text, TypeDecorator, UniqueConstraint
 from sqlalchemy.dialects.postgresql import TSVECTOR as PG_TSVECTOR
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
@@ -31,6 +31,9 @@ class _TSVectorType(TypeDecorator):
 
 class LegalProvision(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "legal_provisions"
+    __table_args__ = (
+        UniqueConstraint("document_revision_id", "provision_identifier", name="uq_provision_revision_ident"),
+    )
 
     document_revision_id: Mapped[uuid.UUID] = mapped_column(
         "document_revision_id",

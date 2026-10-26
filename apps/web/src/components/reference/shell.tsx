@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Logo } from "@/components/ui/logo";
+import { Logo } from "@/components/brand/Logo";
 import { getStats } from "@/lib/api";
 import { useEffect, useState } from "react";
 

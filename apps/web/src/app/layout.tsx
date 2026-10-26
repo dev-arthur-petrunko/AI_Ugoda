@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Splash } from "@/components/brand/Splash";
 import { Playfair_Display, Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import "../styles/globals.css";
+import "../styles/logo.css";
 
 const playfair = Playfair_Display({
   subsets: ["latin", "cyrillic"],
@@ -51,7 +53,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><Splash />{children}</body>
     </html>
   );
 }

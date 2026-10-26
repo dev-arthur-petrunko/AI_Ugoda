@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Search, Clock, FileCheck, BarChart3, ShieldAlert, Link as LinkIcon, Eye, Folder, Upload, Settings, ChevronLeft, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/ui/logo";
+import { Logo } from "@/components/brand/Logo";
 
 const navItems = [
   { name: "Огляд", href: "/uk", icon: LayoutDashboard },

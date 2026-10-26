@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -9,6 +9,9 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 class DocumentRevision(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "document_revisions"
+    __table_args__ = (
+        UniqueConstraint("legal_document_id", "effective_from", name="uq_revision_doc_effective"),
+    )
 
     legal_document_id: Mapped[uuid.UUID] = mapped_column(
         "legal_document_id",

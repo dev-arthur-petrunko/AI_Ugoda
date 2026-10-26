@@ -88,8 +88,7 @@ def test_upsert_revision_and_provision(svc) -> None:
     assert prov.article_number == "1"
     assert prov.content_checksum != ""
 
-    # Дубль provision з тим же provision_identifier в тій же ревізії створює новий запис
-    # (у продакшені можна додати unique constraint на (document_revision_id, provision_identifier))
+    # Повторний upsert з тим же provision_identifier оновлює існуючий запис (idempotent)
     prov2 = svc.upsert_provision(
         revision=rev,
         provision_identifier="Стаття 1",
@@ -98,4 +97,4 @@ def test_upsert_revision_and_provision(svc) -> None:
         text="Текст положення статті 1 оновлений.",
         ordinal=1,
     )
-    assert prov2.id != prov.id
+    assert prov2.id == prov.id

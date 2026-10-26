@@ -14,7 +14,7 @@ class LegalDocument(Base, TimestampMixin, UUIDMixin):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     document_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     document_number: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
-    nreg: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)  # реєстраційний номер в ВР
+    nreg: Mapped[str | None] = mapped_column(String(100), unique=True, index=True, nullable=True)  # реєстраційний номер в ВР
     adoption_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
     issuing_authority: Mapped[str | None] = mapped_column(String(200), nullable=True)
     legal_force_level: Mapped[str | None] = mapped_column(String(40), nullable=True)  # рівень юридичної сили
