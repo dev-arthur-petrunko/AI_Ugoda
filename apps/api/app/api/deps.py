@@ -17,9 +17,10 @@ def get_db_session() -> Generator[Session, None, None]:
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(reusable_oauth2),
 ):
-    # Auth disabled (dev default): allow anonymous admin access.
-    if (settings.AUTH_DISABLED or settings.APP_ENV == "development") and credentials is None:
-        return {"id": "dev-user", "email": "dev@aiugoda.local", "is_superuser": True, "role": "admin"}
+    # Auth disabled (dev default): allow anonymous access WITHOUT admin rights.
+    # AUTH_DISABLED і APP_ENV == "development" одночасно — інакше 401.
+    if settings.AUTH_DISABLED and settings.APP_ENV == "development" and credentials is None:
+        return {"id": "dev-user", "email": "dev@aiugoda.local", "is_superuser": False, "role": "user"}
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     token = credentials.credentials

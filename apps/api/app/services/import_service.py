@@ -77,10 +77,6 @@ class ImportService:
         self.db.commit()
         self.db.refresh(row)
         return row
-        self.db.add(row)
-        self.db.commit()
-        self.db.refresh(row)
-        return row
 
     def upsert_document(
         self,
