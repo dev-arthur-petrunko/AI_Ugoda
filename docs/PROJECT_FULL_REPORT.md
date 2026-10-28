@@ -24,7 +24,7 @@ apps/
       models/             # SQLAlchemy ORM
       services/           # search, import, connector, parser
       middleware/         # rate limiting
-    alembic/versions/     # 0001, 0002, 0003
+    alembic/versions/     # 0001, 0002, 0003, 0004, 0005
   web/
     src/app/uk/           # pages
     src/lib/api.ts        # API client
@@ -37,16 +37,18 @@ docker-compose.yml
   - `0001_initial_schema`
   - `0002_extend_schema`
   - `0003_pgvector_fts` (pgvector + FTS)
+  - `0004_unique_constraints` (unique constraints + dedup before constraint)
+  - `0005_ukrainian_fts` (switch FTS config to Ukrainian Hunspell)
 - IDs unified to `String(36)`.
 - Extensions enabled: `pg_trgm`, `vector`.
 - `legal_provisions` has:
   - `embedding vector(1536)` with HNSW index (cosine).
-  - `search_vector tsvector` generated column with GIN index (`simple` config).
+  - `search_vector tsvector` generated column with GIN index (`ukrainian` config via `to_tsvector('ukrainian', ...)`).
 
 ## 4. Auth & Rate Limiting
-- `AUTH_DISABLED` flag (default `true` in dev).
-- `SECRET_KEY` startup check in production.
-- Rate limiting middleware: 120 req/min per IP (in-memory), exempts `/health`, `/`, docs.
+- `AUTH_DISABLED` flag (default `false` in dev; auth required when `AUTH_DISABLED=false` or `APP_ENV=production`).
+- `SECRET_KEY` startup check in production (raises RuntimeError if `dev-secret-change-me`).
+- Rate limiting middleware: 120 req/min per IP (in-memory), Redis primary with in-memory fallback, exempts `/health`, `/`, docs.
 
 ## 5. Search
 - `SearchService` supports filtering by type/status/authority/dates/legal force level.
@@ -80,14 +82,14 @@ Key variables (see `.env` / `.env.example`):
 - `NEXT_PUBLIC_API_URL`
 
 ## 10. Known Limitations / Next Steps
-- Ukrainian morphology for FTS requires Hunspell dictionaries.
-- Embeddings are not yet generated (column exists).
+- Ukrainian morphology for FTS implemented (migration 0005, hunspell-uk in Docker image) but NOT verified against live PostgreSQL (Docker unavailable in this environment).
+- Embeddings are not yet generated (column exists, data not populated).
 - Some pages are informational/static (assistant, changes, conflicts, contracts, legal-map, monitoring, reports, settings, workspace).
 - CSS tokens partly aliased (`--cream` vs `--text`).
 
 ## 11. Changelog (recent)
-- `9c9f6e4` feat: auth flags, rate limiting, pgvector+FTS migration.
-- `730e529` fix: Docker healthchecks, unify CSS tokens.
+- `da73f6d` fix(K1): auth AND condition, removed dead code import_service, added 401 test, AUDIT report.
+- `c381fb5` feat: Hunspell Ukrainian FTS, Redis rate limiter, unique constraints/upserts, branded logo & splash.
 - Earlier: PostgreSQL migration, ruff cleanup, status audit.
 
 ---
@@ -133,31 +135,27 @@ Generated automatically as project completion report.
 - Added `docs/PROJECT_FULL_REPORT.md` with architecture, DB, auth, search, frontend, Docker, testing, env, limitations, changelog.
 
 ## 13. Completed (Done)
-- PostgreSQL migration complete; Alembic head applied.
-- Data migrated (5 docs, 10 revisions, 14 provisions).
-- Auth flags + rate limiting implemented.
-- pgvector + FTS schema implemented.
-- Docker stack healthy.
 - ruff 0 errors.
-- pytest 7/7.
+- pytest 11 passed / 2 skipped (FTS needs PostgreSQL).
 - Frontend build successful.
-- CSS tokens unified.
-- Docker healthchecks fixed.
-- Documentation added.
+- Auth flags + rate limiting (Redis + in-memory fallback).
+- pgvector + FTS schema (migrations 0003–0005).
+- Branded logo (Терези рівноваги) + Splash screen.
+- Unique constraints + idempotent upserts (nreg, revision, provision).
+- Documentation: CLEANUP_REPORT.md, AUDIT_2026-10-26.md, PROJECT_DOCUMENTATION.md.
 
 ## 14. Not Completed / Blocked
-- Ukrainian morphology for FTS (needs Hunspell dictionaries).
+- Ukrainian FTS not verified against live PostgreSQL (Docker Desktop unavailable).
 - Embedding generation (column exists, data not populated).
-- Full wiring of 9 informational pages to API (requires new backend endpoints).
+- Full wiring of 9 informational pages to API.
 - Deeper CSS token alias cleanup (`--cream` vs `--text`).
 - Production auth (JWT/OAuth) not fully implemented; currently simple token/flag.
-- Redis usage for rate limiting (currently in-memory).
+- CVE in dependencies (pip-audit 98, npm audit 2) — requires dependency updates.
+- Docker daemon not running → cannot validate FTS/migrations/build image.
 
 ## 15. Errors Fixed
-- SQLite→Postgres type/ID mismatches (unified to String(36)).
-- Boolean coercion during data migration.
-- Alembic `script_location` relative path for Docker.
-- Ruff errors (B008/F821 documented).
-- Docker healthcheck failures due to missing `curl`.
-- CSS duplicate `:root` blocks.
-- Model compatibility with SQLite tests (Vector/TSVECTOR types).
+- Auth: `AUTH_DISABLED OR APP_ENV=development` → `AND`; `AUTH_DISABLED=False` default; anonymous user without admin rights.
+- Removed dead code in `import_service.py:upsert_force_level`.
+- Ruff errors (B008/F821 documented) → 0 errors.
+- Docker healthchecks fixed (Python/Node instead of curl).
+- Model compatibility with SQLite tests (Vector/TSVECTOR dialect-aware).

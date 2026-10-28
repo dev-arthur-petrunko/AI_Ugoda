@@ -18,10 +18,11 @@ python -c "import sys; sys.path.insert(0, r'C:\Users\Arthur\Desktop\AI Ugoda\app
 ```
 
 ### Режим продакшну (Docker)
-- **Тип:** PostgreSQL 16 (контейнер `aiugoda_postgres`)
-- **Об'єм даних:** volume `aiugoda_postgres_data` (Dashboard Docker або `docker volume ls`)
-- **Змінна середовища:** `DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@postgres:5432/aiugoda` (усередині мережі Docker)
-- **Запуск:** `docker compose up --build`
+- **Тип:** PostgreSQL 16 (контейнер `aiugoda_postgres`, образ `pgvector/pgvector:pg16` + hunspell-uk).
+- **Об'єм даних:** volume `aiugoda_postgres_data` (Dashboard Docker або `docker volume ls`).
+- **Змінна середовища:** `DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@postgres:5432/aiugoda` (усередині мережі Docker).
+- **Запуск:** `docker compose up --build` (API виконує `alembic upgrade head` при старті).
+- **Міграції:** `0001_initial_schema`, `0002_extend_schema`, `0003_pgvector_fts`, `0004_unique_constraints`, `0005_ukrainian_fts`.
 
 > **Правило:** ніколи не пишите жорстко задані шляхи до `C:\Users\...` у коді бекенду. У `app/core/database.py` шлях до SQLite розв'язується відносно поточного файлу конфігурації через `pathlib.Path.resolve()`.
 
@@ -62,7 +63,8 @@ python -c "import sys; sys.path.insert(0, r'C:\Users\Arthur\Desktop\AI Ugoda\app
 | **Повнотекстовий пошук** | ✅ Готово | SearchService з LIKE-пошуком (потрібна заміна на PostgreSQL FTS) |
 | **Детектор колізій** | ✅ Готово | 3 типи (HIERARCHY, SAME_LEVEL_NEWER, DEAD_REFERENCE), додано EXPIRING, GHOST_NORM |
 | **ІІ / RAG** | ❌ Не готово | Немає chat, векторного пошуку, перевірки цитат |
-| **Фронтенд** | ⚠️ Прототип | Next.js App Router, але не запущено через npm/PowerShell проблеми |
+| **Rate limiting** | ✅ Готово | Per IP, sliding window 60с, Redis + in-memory fallback, 120 req/min, EXEMPT_PATHS |
+| **Автентифікація** | ⚠️ Прототип | get_current_user (AUTH_DISABLED і APP_ENV=development → анонімний користувач без прав адміна; інакше 401) |
 
 Нижче наведено чесний огляд безпеки:
 
@@ -79,7 +81,7 @@ python -c "import sys; sys.path.insert(0, r'C:\Users\Arthur\Desktop\AI Ugoda\app
 | `SECRET_KEY=dev-secret-change-me` | `.env` | ⚠️ Змінити перед продакшном |
 | `COOKIE_SECURE=false` | `.env` | ⚠️ Куки не зашифровані |
 | JWT автентифікація не додана | `app/api/deps.py` (заглушка) | ⚠️ Працює лише як заглушка |
-| Немає Rate Limiting | Бекенд | ⚠️ Потрібно додати |
+| Немає Rate Limiting | Бекенд | ⚠️ Реалізовано (Redis + in-memory fallback), але CVE в залежностях вимагають оновлення |
 | Немає CSRF захисту | Фронтенд/бекенд | ⚠️ Потрібно додати |
 | Немає CSP заголовків | Фронтенд | ⚠️ Потрібно додати |
 | Контракти не шифруються в м'якій формі | `apps/api/app/services/` | ⚠️ Заглушка |

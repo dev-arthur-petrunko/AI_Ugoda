@@ -1,35 +1,24 @@
 ﻿# Журнал розробки AI Ugoda
 
-## 23.10.2026 — Початок реалізації (Фаза 0 + частина Фази 1)
+# Журнал розробки AI Ugoda
+
+## 26.10.2026 — К1: доведення Етапу 1 до кінця (очищення)
 
 ### Зроблено
-- Аудит репозиторію: тека порожня (greenfield).
-- Перевірка zakon.rada.gov.ua: сторінки доступні, CC BY 4.0, база інформаційна, RSS-сторінка — HTML-обгортка (чистий XML не підтверджено).
-- Перевірка data.rada.gov.ua: list.json валідний, оновлення щогодини, формати CSV/JSON/XML.
-- Створено монOREPO:
-  - apps/api/requirements.txt, Dockerfile
-  - apps/api/app/core/config.py, app/core/database.py, app/main.py
-  - Моделі SQLAlchemy: LegalDocument, DocumentRevision, LegalProvision, LegalEvent, LegalReference, LegalLink, LegalForceLevel, AIAnalysis, ConflictCandidate, User, UserMonitoringRule, UserBookmark, ContractDocument, ContractAnalysis, AuditLog
-  - Alembic міграції 0001_initial_schema.py та 0002_extend_schema.py (повна схема з індексами, обмеженнями, рівнями юридичної сили, зв'язками між нормами)
-  - API ендпоінти: /health, /api/v1/documents (list/get), /api/v1/sync (run/status для обох джерел)
-  - Сервіс імпорту ImportService (ідемпотентний upsert документів, ревізій, положень, зв'язків, колізій)
-  - Детектор колізій ConflictEngine (HIERARCHY_CONFLICT, SAME_LEVEL_NEWER, DEAD_REFERENCE)
-  - Коннектори data.rada.gov.ua (основне) + zakon.rada.gov.ua (запасне)
-  - docker-compose.yml (Postgres, Redis, API, Web, Worker), .env.example, .gitignore
-  - Фронтенд: Next.js 14, Tailwind, дизайн Black Coffee Gold, логотип з анімацією, заставка, адаптивна навігація, дашборд, сторінки всіх розділів
-  - Юніт-тести: 6 тестів (ImportService + ConflictEngine) — всі проходять
-- Документація: README.md, docs/PHASE_0_AUDIT.md, docs/DEVLOG.md, docs/SOURCES_VERIFIED.md
+- **Авторизація виправлена:** `AUTH_DISABLED OR APP_ENV=development` → `AUTH_DISABLED AND APP_ENV=development`; `AUTH_DISABLED=False` за замовчуванням; анонімний користувач без прав адміна (`is_superuser: False`).
+- **Мертвий код видалено:** невиконуваний блок після `return row` у `import_service.py:upsert_force_level`.
+- **Тести додано:** `tests/test_auth.py` (401 без токена), `tests/test_import_service.py` (тест N статей → N у БД, ідемпотентність).
+- **Інструменти якості запущені:** ruff 0 помилок; bandit 6 LOW; pip-audit 98 CVE; npm audit 2 (postcss); knip/depcheck/vulture виводи додано в AUDIT_2026-10-26.md.
+- **Звіт аудиту:** `docs/AUDIT_2026-10-26.md` створено з сировими виводами команд (A1–A10.1).
+- **Звіт очищення:** `docs/CLEANUP_REPORT.md` оновлено.
+- **Пуш на GitHub:** виконано, коміт `da73f6d` запушений у `origin/main` (автор: Arthur Petrunko <arthurpetrunko@gmail.com>).
 
-### Не зроблено (баклог)
-- Реальний імпорт документів з data.rada.gov.ua / zakon.rada.gov.ua у PostgreSQL (seed_acts.py створено, потребує БД)
-- AI/RAG, підключення LLM (Groq/OpenAI/Anthropic)
-- Завантаження та аналіз договорів (PDF/DOCX/TXT)
-- JWT автентифікація та RBAC
-- Сповіщення моніторингу (in-app/email/Telegram)
-- Експорт звітів (PDF/DOCX)
-- Пуш на GitHub (потрібен PAT користувача arthurpetrunko@gmail.com)
+### Тести
+- `python -m pytest -q` → 11 passed, 2 skipped (FTS потребує PostgreSQL + Hunspell).
+- `python -m ruff check apps/api` → All checks passed!
 
-### Далі
-- Імпорт 5 тестових актів (Конституція, Цивільний кодекс, Кримінальний кодекс, КЗпП, Податковий кодекс) через scripts/seed_acts.py
-- Розширення детектора колізій (GHOST_NORM, CODE_DUPLICATION, UNCONSTITUTIONAL, EXPIRING)
-- Потім пуш у https://github.com/dev-arthur-petrunko/AI_Ugoda (потрібен PAT користувача arthurpetrunko@gmail.com).
+### Бакалоблоки
+- Оновлення залежностей (Next.js 14 → 16, CVE Python-пакетів) — Етап 4.
+- Об'єднання двох шкал CSS-токенів — Етап 2.
+- Docker Desktop не запущено → неможливо валідувати FTS/міграції/збірку образу.
+
