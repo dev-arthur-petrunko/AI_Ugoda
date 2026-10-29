@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import ForeignKey, Integer, String, Text, TypeDecorator, UniqueConstraint
@@ -7,6 +7,9 @@ from sqlalchemy.dialects.postgresql import TSVECTOR as PG_TSVECTOR
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.document_revision import DocumentRevision
 
 
 class _VectorType(TypeDecorator):

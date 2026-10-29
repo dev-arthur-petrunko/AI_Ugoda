@@ -162,3 +162,8 @@ def test_act_n_provisions_to_db(svc) -> None:
         __import__("app.models.legal_provision", fromlist=["LegalProvision"]).LegalProvision.document_revision_id == rev.id
     ).count()
     assert count == N, f"очікувалося {N} статей, отримано {count}"
+
+def test_configure_mappers():
+    from sqlalchemy.orm import configure_mappers
+    configure_mappers()
+    assert True

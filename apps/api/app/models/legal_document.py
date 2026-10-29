@@ -1,9 +1,14 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Date, String, Text
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.legal_event import LegalEvent
+
+if TYPE_CHECKING:
+    from app.models.document_revision import DocumentRevision
 
 
 class LegalDocument(Base, TimestampMixin, UUIDMixin):

@@ -1,8 +1,15 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.contract_document import ContractDocument
+
+if TYPE_CHECKING:
+    from app.models.user_monitoring_rule import UserMonitoringRule
+
+    from app.models.user_bookmark import UserBookmark
 
 
 class User(Base, TimestampMixin, UUIDMixin):

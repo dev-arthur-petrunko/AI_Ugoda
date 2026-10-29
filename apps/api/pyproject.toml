@@ -1,8 +1,10 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
 [tool.ruff.lint]
 # B008: FastAPI uses Depends()/Query() in argument defaults by design.
-# F821: Rowwise forward references in SQLAlchemy 2.0 are resolved at mapper config time.
-# SQLAlchemy 2.0 resolves these at mapper config time, not at runtime.
-# ignore = ["B008", "F821"]
+ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
