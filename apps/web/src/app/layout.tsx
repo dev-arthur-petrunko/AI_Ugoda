@@ -55,7 +55,8 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className="antialiased"><Splash />{children}
-<Logo variant="lockup" size={80} />\n<Logo variant=\"lockup\" size={80} />
+<Logo variant="lockup" size={80} />
+      </body>
     </html>
   );
 }
