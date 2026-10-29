@@ -35,7 +35,7 @@ class DataRadaConnector:
             import httpx
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
-                headers={"User-Agent": "AI Ugoda legal-intelligence connector"}
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
             )
         return self._client
 
@@ -108,7 +108,7 @@ class ZakonRadaConnector:
             import httpx
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
-                headers={"User-Agent": "AI Ugoda legal-intelligence connector"}
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
             )
         return self._client
 
