@@ -164,6 +164,17 @@ class ImportService:
                 )
                 .first()
             )
+        # Also check by source_hash to handle re-imports with same content
+        if row is None and normalized_text is not None:
+            computed_hash = _checksum(normalized_text)
+            row = (
+                self.db.query(DocumentRevision)
+                .filter(
+                    DocumentRevision.legal_document_id == document.id,
+                    DocumentRevision.source_hash == computed_hash,
+                )
+                .first()
+            )
         if row:
             row.revision_label = revision_label
             row.revision_date = revision_date

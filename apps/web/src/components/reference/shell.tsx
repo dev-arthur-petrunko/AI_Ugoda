@@ -70,7 +70,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <div className="app">
         <aside className={`side glass ${sideOpen ? "open" : ""}`}>
           <div className="brand">
-            <Logo size={34} />
+            <Logo variant="lockup" size={34} />
             <b>
               <i>AI</i> Ugoda
             </b>
