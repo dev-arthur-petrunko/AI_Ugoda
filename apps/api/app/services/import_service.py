@@ -24,7 +24,12 @@ from app.models.legal_provision import LegalProvision
 from app.services.parser import ParsedDocument
 
 
-def _checksum(content: bytes | str) -> str:
+def _checksum(content: bytes | str | dict | None) -> str:
+    if content is None:
+        content = ""
+    if isinstance(content, dict):
+        import json
+        content = json.dumps(content, sort_keys=True, ensure_ascii=False)
     if isinstance(content, str):
         content = content.encode("utf-8")
     return hashlib.sha256(content).hexdigest()
