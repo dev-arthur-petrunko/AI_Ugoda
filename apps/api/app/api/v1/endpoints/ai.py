@@ -19,6 +19,7 @@ async def ask_question(question: str, document_id: str | None = None, db: Sessio
         "citations": [{"provision_id": c.provision_id, "quote": c.quote, "verified": c.verified} for c in result.citations],
         "confidence": result.confidence,
         "warnings": result.warnings,
+        "provider": result.provider,
     }
 
 

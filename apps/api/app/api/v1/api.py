@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import ai, analysis, auth, conflicts, diff, documents, graph, health, stats, sync
+from app.api.v1.endpoints import ai, analysis, auth, bookmarks, conflicts, contracts, diff, documents, graph, health, monitoring, stats, sync
 
 api_router = APIRouter()
 api_router.include_router(health.router, prefix='/health', tags=['health'])
@@ -13,3 +13,6 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(diff.router, prefix="/documents", tags=["diff"])
 api_router.include_router(conflicts.router, prefix="/conflicts", tags=["conflicts"])
 api_router.include_router(graph.router, prefix="/graph", tags=["graph"])
+api_router.include_router(bookmarks.router, prefix="/bookmarks", tags=["bookmarks"])
+api_router.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
+api_router.include_router(contracts.router, prefix="/contracts", tags=["contracts"])

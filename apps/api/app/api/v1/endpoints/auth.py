@@ -1,14 +1,21 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -44,18 +51,22 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password or ""):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token = create_access_token(data={"sub": user.email})
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    access_token = create_access_token(
+        data={"sub": user.email, "role": "admin" if user.is_superuser else "user"}
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/register")
-async def register(email: str, password: str, db: Session = Depends(get_db)):
+async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """Реєстрація користувача."""
-    existing = db.query(User).filter(User.email == email).first()
+    existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    hashed_password = get_password_hash(password)
-    user = User(email=email, hashed_password=hashed_password)
+    hashed_password = get_password_hash(user_data.password)
+    user = User(email=user_data.email, hashed_password=hashed_password)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -68,9 +79,10 @@ async def refresh(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
+        role = payload.get("role", "user")
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        access_token = create_access_token(data={"sub": email})
+        access_token = create_access_token(data={"sub": email, "role": role})
         return {"access_token": access_token, "token_type": "bearer"}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")

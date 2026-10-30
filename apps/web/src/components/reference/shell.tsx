@@ -15,6 +15,7 @@ const NAV = [
   ["map", "Карта законодавства", "/uk"],
   ["watch", "Моніторинг", "/uk"],
   ["docs", "Мої документи", "/uk"],
+  ["bookmarks", "Закладки", "/uk/bookmarks"],
   ["reports", "Звіти", "/uk"],
   ["settings", "Налаштування", "/uk"],
   ["admin", "Панель адміністратора", "/uk/admin"],
@@ -57,6 +58,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     if (pathname === "/uk/changes") return "news";
     if (pathname === "/uk/contracts") return "contracts";
     if (pathname === "/uk/conflicts") return "conflicts";
+    if (pathname === "/uk/bookmarks") return "bookmarks";
     return "overview";
   })();
 

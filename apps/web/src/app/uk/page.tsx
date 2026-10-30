@@ -1,6 +1,6 @@
 "use client";
 
-import { Logo } from "@/components/brand/Logo";
+import InteractiveScene from "@/components/InteractiveScene";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getStats } from "@/lib/api";
@@ -56,7 +56,7 @@ export default function OverviewPage() {
             <button className="btn s" onClick={() => router.push("/uk/conflicts")}>Хто кого перебиває</button>
           </div>
         </div>
-        <Logo variant="mark" size={80} animated />
+        <InteractiveScene className="hero-scene" height="460px" />
       </div>
 
       <div className="grid">

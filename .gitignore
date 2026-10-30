@@ -33,6 +33,9 @@ build/
 *.swo
 .DS_Store
 
+# TypeScript
+*.tsbuildinfo
+
 # Docker / data
 data/
 *.log
