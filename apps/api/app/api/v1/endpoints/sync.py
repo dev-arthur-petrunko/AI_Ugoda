@@ -1,7 +1,7 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import get_current_user
-from app.services.connector import DataRadaConnector, ZakonRadaConnector
+from app.services.connector import DataRadaConnector, ZakonRadaConnector, sync_once
 
 router = APIRouter()
 
@@ -49,6 +49,14 @@ async def run_sync(current_user=Depends(get_current_user)):
         }
     finally:
         await zakon_connector.close()
+
+    # Реальний Tier 1 імпорт: парсинг та збереження актів
+    if check.reachable:
+        try:
+            import_result = await sync_once()
+            results["import"] = import_result
+        except Exception as exc:  # noqa: BLE001 — мережеві/БД помилки імпорту не повинні ламати відповідь
+            results["import"] = {"error": str(exc), "stats": {}}
 
     return results
 

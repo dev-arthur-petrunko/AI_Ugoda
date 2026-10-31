@@ -1,7 +1,6 @@
 """AI service (TZ v2, розділ B.9 — RAG-конвеєр)."""
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from typing import Any
 

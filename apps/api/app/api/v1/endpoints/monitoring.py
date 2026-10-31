@@ -1,10 +1,9 @@
 """Ендпоінти для правил моніторингу користувачів (K11 — акаунти)."""
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_user

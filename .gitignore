@@ -11,6 +11,7 @@ build/
 # Python
 __pycache__/
 *.py[cod]
+*.db
 *$py.class
 *.so
 .Python

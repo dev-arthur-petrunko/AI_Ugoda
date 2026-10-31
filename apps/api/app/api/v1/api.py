@@ -1,6 +1,20 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import ai, analysis, auth, bookmarks, conflicts, contracts, diff, documents, graph, health, monitoring, stats, sync
+from app.api.v1.endpoints import (
+    ai,
+    analysis,
+    auth,
+    bookmarks,
+    conflicts,
+    contracts,
+    diff,
+    documents,
+    graph,
+    health,
+    monitoring,
+    stats,
+    sync,
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router, prefix='/health', tags=['health'])

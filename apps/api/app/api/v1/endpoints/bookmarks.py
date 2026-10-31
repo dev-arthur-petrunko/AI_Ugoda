@@ -1,16 +1,15 @@
 """Ендпоінти для закладок користувачів (K11 — акаунти)."""
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_current_active_user
+from app.api.deps import get_current_active_user
 from app.core.database import get_db
-from app.models.user_bookmark import UserBookmark
 from app.models.legal_document import LegalDocument
+from app.models.user_bookmark import UserBookmark
 
 router = APIRouter()
 

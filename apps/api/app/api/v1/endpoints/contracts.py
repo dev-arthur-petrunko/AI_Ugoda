@@ -1,14 +1,12 @@
 """Ендпоінти для договорів користувачів (K11 — акаунти,アナліз договорів)."""
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_user
-from app.core.config import settings
 from app.core.database import get_db
 from app.models.contract_document import ContractDocument
 
