@@ -44,8 +44,8 @@ export default function InteractiveScene({
 
   // Animation state
   const stateRef = useRef({
-    dayT: 1,
-    day: 1,
+    dayT: 0,
+    day: 0,
     doorF: 0,
     idle: 0,
     sel: -1,
@@ -64,7 +64,18 @@ export default function InteractiveScene({
     statusText: string;
     path: string;
   } | null>(null);
-  const [isNight, setIsNight] = useState(false);
+  const [isNight, setIsNight] = useState(true);
+
+  // Applies site-wide theme: night -> dark (default), day -> light site
+  const applySiteTheme = useCallback((night: boolean) => {
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle("theme-light", !night);
+    try {
+      localStorage.setItem("ai-ugoda-theme", night ? "dark" : "light");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
 
   const hotspots: Hotspot[] = [
     {
@@ -211,9 +222,26 @@ export default function InteractiveScene({
     setIsNight((prev) => {
       const next = !prev;
       stateRef.current.dayT = next ? 0 : 1;
+      applySiteTheme(next);
       return next;
     });
-  }, []);
+  }, [applySiteTheme]);
+
+  // Restore persisted theme (default: night / dark site)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("ai-ugoda-theme");
+    } catch {
+      /* storage unavailable */
+    }
+    const night = saved !== "light";
+    setIsNight(night);
+    stateRef.current.dayT = night ? 0 : 1;
+    stateRef.current.day = night ? 0 : 1;
+    applySiteTheme(night);
+  }, [applySiteTheme]);
 
   // CSS styles injected once
   useEffect(() => {
@@ -246,9 +274,29 @@ export default function InteractiveScene({
         font: 600 clamp(26px, 3.6vw, 48px) / 1.08 "Playfair Display", serif;
         color: #f3e6bc;
         margin: 0;
+        text-shadow: 0 2px 24px rgba(232, 200, 113, 0.35);
+      }
+      .iu-title .iu-title-sep {
+        color: #e8c871;
+        font-weight: 400;
+        margin: 0 6px;
+      }
+      .iu-title .iu-place {
+        color: #e8c871;
+        margin: 8px 0 0;
+        font: italic 500 17px/1.4 "Source Serif 4", serif;
+        letter-spacing: 0.04em;
+        text-transform: none;
+        text-shadow: 0 1px 14px rgba(232, 200, 113, 0.4);
+      }
+      .iu-title .iu-sub {
+        color: #b3a28a;
+        margin-top: 8px;
+        font-size: 15px;
+        max-width: 36ch;
+        line-height: 1.55;
       }
       .iu-title p {
-        color: #b3a28a;
         margin-top: 8px;
         font-size: 15px;
         margin: 0;
@@ -296,7 +344,7 @@ export default function InteractiveScene({
         color: #f3e6bc;
         margin: 0 0 2px 0;
       }
-      .iu-card .sec {
+      .iu-card .iu-card-sec {
         color: #e8c871;
         font-size: 14px;
         margin-top: 4px;
@@ -743,33 +791,7 @@ export default function InteractiveScene({
     WM.frustumCulled = false;
     rd.add(WM);
 
-    // neighbor house
-    const nb = new THREE.Group();
-    nb.position.set(4.95, 0, -3.2);
-    root.add(nb);
-    add(nb, B(2.1, 1.7, 4.2), 0xe5d9b3, 0, 0.85, 0);
-    add(nb, B(2.25, 0.12, 4.35), 0xf6f1de, 0, 1.76, 0);
-    add(nb, B(2, 0.06, 4.1), 0x7d8288, 0, 1.84, 0);
-    add(nb, B(2.2, 0.2, 4.3), 0xb9ad86, 0, 0.1, 0);
-    const nl: [number, number, number, number, number, number][] = [];
-    for (let r = 0; r < 2; r++) {
-      for (let z = -1.8; z <= 1.81; z += 0.6) nl.push([-1.06, 0.6 + r * 0.6, z, 0.04, 0.32, 0.2]);
-      for (let x = -0.7; x <= 0.71; x += 0.7) nl.push([x, 0.6 + r * 0.6, 2.11, 0.2, 0.32, 0.04]);
-    }
-    const NN = nl.length;
-    const NM = new THREE.InstancedMesh(B(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), NN);
-    const no: number[] = [];
-    nl.forEach((w, i) => {
-      D.position.set(w[0], w[1], w[2]);
-      D.rotation.set(0, 0, 0);
-      D.scale.set(w[3], w[4], w[5]);
-      D.updateMatrix();
-      NM.setMatrixAt(i, D.matrix);
-      no.push(rnd() < 0.3 ? 0.3 : 1);
-      NM.setColorAt(i, cc.setRGB(1, 1, 1));
-    });
-    NM.frustumCulled = false;
-    nb.add(NM);
+    // (neighbor houses removed per design request)
 
     const pl0 = new THREE.PointLight(0xffa850, 1.3, 8);
     pl0.position.set(0.8, 1.2, -1);
@@ -1047,16 +1069,7 @@ export default function InteractiveScene({
       g.add(hd);
     });
 
-    const mp = new THREE.Group();
-    mp.position.set(-8.5, 0, -9);
-    S.add(mp);
-    const mw = new THREE.Mesh(B(1.5, 0.9, 1.3), new THREE.MeshBasicMaterial({ color: 0xe5d9b3 }));
-    mw.position.y = 0.45;
-    mp.add(mw);
-    const mr2 = new THREE.Mesh(Co(1.1, 0.5, 4), new THREE.MeshBasicMaterial({ color: 0x9a2f2a }));
-    mr2.position.y = 1.15;
-    mr2.rotation.y = 0.785;
-    mp.add(mr2);
+    // (distant house removed per design request)
 
     // Hotspot groups + meshes for picking
     const HS = hotspots.map((h) => ({ ...h, group: null as THREE.Group | null }));
@@ -1149,7 +1162,6 @@ export default function InteractiveScene({
       });
 
       wnd(WM, WN, wo, t, 0);
-      wnd(NM, NN, no, t, 5);
 
       (pl0 as THREE.PointLight).intensity = (1.25 + (RM ? 0 : 0.12 * Math.sin(t * 2.3))) * (0.05 + 0.95 * nd);
       (pl1 as THREE.PointLight).intensity = (1 + (RM ? 0 : 0.15 * Math.sin(t * 1.1))) * (0.05 + 0.95 * nd);
@@ -1373,27 +1385,31 @@ export default function InteractiveScene({
   }, []);
 
   return (
-    <div ref={containerRef} className={`relative ${className}`} style={{ height, width: "100%", background: "#0c0a0b" }}>
-      <div id="ai-ugoda-scene-ui" aria-hidden="true">
+    <div ref={containerRef} className={`relative ${className}`} style={{ height, width: "100%", background: "#0c0a0b" }}>      <div id="ai-ugoda-scene-ui" aria-hidden="true">
         <div className="iu-title">
-          <h1>Київ. Площа Конституції</h1>
-          <p>Верховна Рада, річка, міст, вулиця з рухом і люди біля входу. Кожен предмет — розділ сайту.</p>
+          <h1>
+            AI Ugoda <span className="iu-title-sep">·</span> Верховна Рада
+          </h1>
+          <p className="iu-place">Київ. Площа Конституції</p>
+          <p className="iu-sub">
+            Золоті куполи над Дніпром — і кожен камінь площі веде до розділу законодавства. Оберіть, куди йти.
+          </p>
         </div>
-        <div className="iu-hint">Тягніть: обертати · Колесо: наближення · Клік по предмету: розділ</div>
-        <button className="iu-night-btn" onClick={toggleDayNight} aria-label="День / ніч">
-          {isNight ? "День" : "Ніч"}
+        <div className="iu-hint">Тягніть — обертати · Колесо — наближення · Клік по предмету — відкрити розділ</div>
+        <button className="iu-night-btn" onClick={toggleDayNight} aria-label="Перемкнути день і ніч, світлу та темну тему сайту">
+          {isNight ? "☀ Світла" : "🌙 Ніч"}
         </button>
         <div id="iu-tip" className="iu-tip" />
       </div>
       <div className="iu-vg" aria-hidden="true" />
-      <canvas id="ai-ugoda-scene-canvas" ref={canvasRef} aria-label="Інтерактивна 3D-сценка площі Конституції" />
+      <canvas id="ai-ugoda-scene-canvas" ref={canvasRef} aria-label="Інтерактивна 3D-сценка: AI Ugoda, Київ, площа Конституції, Верховна Рада" />
       <div id="ai-ugoda-scene-err" className="iu-err" aria-live="polite">
         Не вдалося запустити 3D (потрібен WebGL і доступ до three.js).
       </div>
       {cardOpen && cardData && (
         <div className={`iu-card ${cardData.status === "ok" ? "" : ""} ${cardOpen ? "on" : ""}`} role="dialog" aria-modal="true" aria-label={cardData.name}>
           <h2>{cardData.name}</h2>
-          <div className="iu-sec">{cardData.section}</div>
+          <div className="iu-card-sec">{cardData.section}</div>
           <p>{cardData.desc}</p>
           <span className={`iu-badge ${cardData.status}`}>{cardData.statusText}</span>
           <div className="iu-row">

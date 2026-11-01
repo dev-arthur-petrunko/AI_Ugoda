@@ -53,6 +53,11 @@ export default function RootLayout({
     >
       <head>
         <link rel="icon" href="/favicon.ico" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("ai-ugoda-theme")==="light")document.documentElement.classList.add("theme-light")}catch(e){}`,
+          }}
+        />
       </head>
       <body className="antialiased"><Splash />{children}
 <Logo variant="lockup" size={80} />

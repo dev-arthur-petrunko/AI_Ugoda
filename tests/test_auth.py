@@ -55,8 +55,8 @@ def _unique_email(base: str) -> str:
 
 
 def test_stats_401_without_token() -> None:
-    """Запит без токена до захищеного ендпоінта /api/v1/stats має повертати 401."""
-    response = client.get("/api/v1/stats")
+    """Запит без токена до захищеного ендпоінта /api/v1/bookmarks має повертати 401."""
+    response = client.get("/api/v1/bookmarks")
     assert response.status_code == 401, response.text
 
 
@@ -179,7 +179,7 @@ def test_protected_endpoint_with_token() -> None:
 def test_protected_endpoint_with_invalid_token() -> None:
     """Захищений ендпоінт недоступний з невірним токеном."""
     response = client.get(
-        "/api/v1/stats",
+        "/api/v1/bookmarks",
         headers={"Authorization": "Bearer invalid-token"},
     )
     assert response.status_code == 401, response.text
