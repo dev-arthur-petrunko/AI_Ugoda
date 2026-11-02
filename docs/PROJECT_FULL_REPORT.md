@@ -1,5 +1,7 @@
 # AI Ugoda — Full Project Report
 
+Дата оновлення: 02.11.2026
+
 ## 1. Overview
 AI Ugoda is a Ukrainian legal intelligence platform. It provides:
 - Search and browsing of legal acts/documents.
@@ -47,6 +49,9 @@ docker-compose.yml
 
 ## 4. Auth & Rate Limiting
 - `AUTH_DISABLED` flag (default `false` in dev; auth required when `AUTH_DISABLED=false` or `APP_ENV=production`).
+- JWT auth implemented in `app/api/deps.py`: decode token (jose), user lookup by email (`sub` claim), `is_superuser`/inactive checks, roles user/admin.
+- `/api/v1/stats` is **public** (no JWT) so the dashboard shows real numbers without login; protected endpoints (bookmarks/monitoring/contracts) return 401 without token.
+- Security headers middleware in `main.py`: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP.
 - `SECRET_KEY` startup check in production (raises RuntimeError if `dev-secret-change-me`).
 - Rate limiting middleware: 120 req/min per IP (in-memory), Redis primary with in-memory fallback, exempts `/health`, `/`, docs.
 
@@ -56,9 +61,12 @@ docker-compose.yml
 - Suggestions and search by provision (article number).
 
 ## 6. Frontend
-- Pages: overview, legislation search/detail, admin, plus explanatory pages.
-- API client in `src/lib/api.ts`.
-- Design tokens unified in `globals.css`.
+- Pages: `/uk` overview, legislation search/detail, admin, bookmarks, monitoring, contracts, plus explanatory pages (changes, conflicts, legal-map, assistant, reports, settings, workspace).
+- API client in `src/lib/api.ts` (stats, documents, sync, analysis, bookmarks, monitoring, contracts).
+- Design tokens unified in `globals.css` (single `:root`).
+- **Interactive 3D scene** (`components/InteractiveScene.tsx`, Three.js): title «AI Ugoda · Верховна Рада», place «Київ. Площа Конституції», 7 hotspots navigate to site sections; drag to rotate, wheel to zoom, click to open section.
+- **Day/night toggle** («☀ Світла» / «🌙 Ніч»): night = dark theme (default); light = `theme-light` class on `<html>` switching the **whole site** to a light theme via CSS variables in `globals.css`. Persisted in `localStorage["ai-ugoda-theme"]`, restored before first paint by inline script in `layout.tsx`.
+- Logo: Splash (session, ≤2.2s) + sidebar lockup; duplicate root-layout logo removed.
 
 ## 7. Docker
 - Services: postgres (pgvector/pgvector:pg16), redis, api, web, worker.
@@ -66,9 +74,10 @@ docker-compose.yml
 - All services healthy.
 
 ## 8. Testing & Quality
-- Backend: `pytest` → 7/7 passed.
-- Lint: `ruff check apps/api` → 0 errors.
-- Frontend: `npm run build` → successful (16 routes).
+- Backend: `pytest` → 23 passed, 2 skipped (401 tests target protected `/bookmarks`; `/stats` is public).
+- Lint: `ruff check` → 0 errors.
+- Frontend: `tsc --noEmit` → 0 errors; `next build` → successful (19 routes).
+- Local verification (02.11.2026): all 14 pages + `/three` return 200; `/health` ok; `/stats` returns real numbers (5 acts · 5 revisions · 7 provisions).
 - Docker health: all healthy.
 
 ## 9. Environment Variables
@@ -88,12 +97,18 @@ Key variables (see `.env` / `.env.example`):
 - CSS tokens partly aliased (`--cream` vs `--text`).
 
 ## 11. Changelog (recent)
+- `e926cad` docs: update STATUS (scene, theme, public stats, tests).
+- `ec92b70` remove duplicate logo from root layout.
+- `c109d5f` scene title AI Ugoda · Верховна Рада, light theme toggle, beautiful scene texts, public stats, tests updated.
+- `44f5386` K4 real sync wiring + ruff + gitignore.
+- `6cd6e67` K12 legal review checklist.
+- `f92536e` K7–K12 (JWT, endpoints, migration, AI providers, load tests).
 - `da73f6d` fix(K1): auth AND condition, removed dead code import_service, added 401 test, AUDIT report.
 - `c381fb5` feat: Hunspell Ukrainian FTS, Redis rate limiter, unique constraints/upserts, branded logo & splash.
 - Earlier: PostgreSQL migration, ruff cleanup, status audit.
 
 ---
-Generated automatically as project completion report.
+Full history in git log.
 
 
 ## 12. Detailed Process (Chronological)
@@ -135,23 +150,24 @@ Generated automatically as project completion report.
 - Added `docs/PROJECT_FULL_REPORT.md` with architecture, DB, auth, search, frontend, Docker, testing, env, limitations, changelog.
 
 ## 13. Completed (Done)
-- ruff 0 errors.
-- pytest 11 passed / 2 skipped (FTS needs PostgreSQL).
-- Frontend build successful.
-- Auth flags + rate limiting (Redis + in-memory fallback).
-- pgvector + FTS schema (migrations 0003–0005).
-- Branded logo (Терези рівноваги) + Splash screen.
+- ruff 0 errors; tsc 0 errors; next build OK (19 routes); pytest 23 passed / 2 skipped.
+- Auth: JWT + RBAC (deps.py), security headers middleware, AUTH_DISABLED flags, rate limiting (Redis + in-memory fallback).
+- `/api/v1/stats` public — dashboard shows real numbers without login.
+- pgvector + FTS schema (migrations 0003–0005, `ukrainian` config verified).
+- Branded logo (Терези рівноваги) + Splash; duplicate root-layout logo removed.
+- Interactive 3D scene: «AI Ugoda · Верховна Рада» / «Київ. Площа Конституції», houses around scene removed, day/night → site-wide light/dark theme with localStorage.
+- K4 real import: `/sync/run` → `sync_once()` (parses zakon.rada.gov.ua).
+- K10 AI providers: mock/groq/openai/anthropic (real provider needs API key in `.env`).
+- K11 endpoints: /bookmarks, /monitoring, /contracts (+ migration `516775f2e1d9`, frontend pages).
 - Unique constraints + idempotent upserts (nreg, revision, provision).
-- Documentation: CLEANUP_REPORT.md, AUDIT_2026-10-26.md, PROJECT_DOCUMENTATION.md.
+- Documentation consolidated: STATUS.md, PROJECT_FULL_REPORT.md, OPERATIONS.md (3 files).
 
 ## 14. Not Completed / Blocked
-- Ukrainian FTS not verified against live PostgreSQL (Docker Desktop unavailable).
 - Embedding generation (column exists, data not populated).
-- Full wiring of 9 informational pages to API.
-- Deeper CSS token alias cleanup (`--cream` vs `--text`).
-- Production auth (JWT/OAuth) not fully implemented; currently simple token/flag.
-- CVE in dependencies (pip-audit 98, npm audit 2) — requires dependency updates.
-- Docker daemon not running → cannot validate FTS/migrations/build image.
+- Real LLM provider: needs `GROQ_API_KEY`/`OPENAI_API_KEY`/`ANTHROPIC_API_KEY` in `.env` + `AI_PROVIDER=<name>`.
+- K12 legal sign-off: lawyer must fill out the checklist (see STATUS.md §Legal review) — pending.
+- Full wiring of some informational pages to live API data (assistant, changes, legal-map, reports).
+- Dependency CVEs (pip-audit 98, npm audit 2) — requires dependency updates.
 
 ## 15. Errors Fixed
 - Auth: `AUTH_DISABLED OR APP_ENV=development` → `AND`; `AUTH_DISABLED=False` default; anonymous user without admin rights.
@@ -159,3 +175,6 @@ Generated automatically as project completion report.
 - Ruff errors (B008/F821 documented) → 0 errors.
 - Docker healthchecks fixed (Python/Node instead of curl).
 - Model compatibility with SQLite tests (Vector/TSVECTOR dialect-aware).
+- `/api/v1/stats` was 401 for anonymous users → made public; 401 tests moved to protected `/bookmarks`.
+- Duplicate root-layout `<Logo size={80}>` removed (duplicated sidebar logo on every page).
+- Scene card CSS class mismatch (`iu-sec` → `iu-card-sec`).

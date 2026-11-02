@@ -45,7 +45,7 @@ docker compose exec api alembic upgrade head  # міграції (запуска
 
 ## Джерела даних (перевірені)
 
-Див. `docs/SOURCES_VERIFIED.md`. Основне джерело — `data.rada.gov.ua/ogd/zak/laws/` (відкриті дані ВР). Запасне — `zakon.rada.gov.ua`.
+Основне джерело — `data.rada.gov.ua/ogd/zak/laws/` (відкриті дані ВР). Запасне — `zakon.rada.gov.ua`. Деталі — у `docs/PROJECT_FULL_REPORT.md`.
 
 ## Обмеження (чесний стан)
 
@@ -59,4 +59,4 @@ docker compose exec api alembic upgrade head  # міграції (запуска
 
 `https://github.com/dev-arthur-petrunko/AI_Ugoda` (пуш від `arthurpetrunko@gmail.com`, потрібен GitHub PAT з правом `repo`).
 
-Див. `docs/PHASE_0_AUDIT.md` та `docs/DEVLOG.md`.
+Див. `docs/STATUS.md` та `docs/OPERATIONS.md`.
