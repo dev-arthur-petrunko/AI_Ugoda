@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Splash } from "@/components/brand/Splash";
-import { Logo } from "@/components/brand/Logo";
 import { Playfair_Display, Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import "../styles/globals.css";
 import "../styles/logo.css";
@@ -60,7 +59,6 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased"><Splash />{children}
-<Logo variant="lockup" size={80} />
       </body>
     </html>
   );
