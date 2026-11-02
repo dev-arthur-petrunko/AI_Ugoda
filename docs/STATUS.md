@@ -1,8 +1,36 @@
 # AI Ugoda — Статус проєкту (повний звіт)
 
-Дата: 30.10.2026
+Дата: 02.11.2026
 Автор: Arthur Petrunko <arthurpetrunko@gmail.com>
-Гілка: main @ 14bfebc (K10: Add AI service with RAG pipeline and ask endpoint)
+Гілка: main @ ec92b70 (Remove duplicate logo from root layout)
+
+## 0. Останні зміни (01–02.11.2026)
+
+**Інтерактивна сцена (головна сторінка):**
+- Заголовок сцени: **«AI Ugoda · Верховна Рада»** (обидві назви в титулі, як у ТЗ)
+- Золотий підзаголовок **«Київ. Площа Конституції»** + ефектний опис: *«Золоті куполи над Дніром — і кожен камінь площі веде до розділу законодавства»*
+- Текст підказки та aria-label сцени відшліфовано
+- Сусідній будинок і дальній будиночок навколо сцени **прибрано**
+- Виправлено баг: CSS-клас секції картки (`iu-sec` → `iu-card-sec` не збігався з стилями)
+
+**День/Ніч → тема всього сайту:**
+- Кнопка сцени: **«☀ Світла» / «🌙 Ніч»**
+- «Ніч» — темна тема (як було): темне меню, темна сцена
+- «Світла» — клас `theme-light` на `<html>`, **весь сайт** перемикається на світлу тему (фон, меню, картки, таблиці, інпути, модалки, хедлери, скелетони) через CSS-змінні у `globals.css`
+- Вибір зберігається в `localStorage` (`ai-ugoda-theme`) і відновлюється inline-скриптом у `layout.tsx` до першого рендеру — без спалаху темної теми
+
+**Логотип:**
+- Прибрано **повторне лого** `<Logo size={80}>` із `layout.tsx` (дублювало лого в сайдбарі на кожній сторінці); лишились заставка + лого в меню
+
+**Статистика:**
+- `/api/v1/stats` зроблено **публічним** (без JWT) — картка «Стан даних» і чип у хедері показують реальні числа без логіну
+- Поточні значення БД: **5 актів · 5 редакцій · 7 статей**
+
+**Локальна перевірка (02.11.2026):**
+- Усі 14 сторінок (+ `/three`) відповідають **200**
+- API: `/health` → ok; `/stats` → реальні числа; `/documents` → список
+- Якість: `ruff` — 0 помилок; `tsc --noEmit` — 0 помилок; `next build` — успішно; `pytest` — **23 passed, 2 skipped** (тести 401 переведено на захищений `/bookmarks`, бо `/stats` тепер публічний)
+- Коміти: `f92536e` (K7–K12), `6cd6e67` (чек-лист), `44f5386` (K4 sync), `c109d5f` (сцена + тема + публічний stats), `ec92b70` (повторне лого)
 
 ## 1. Загальний стан
 
@@ -20,8 +48,10 @@ AI Ugoda — юридична інтелектуальна платформа д
 **K2 — Логотип + інтерактивна сценка:**
 - `components/brand/Logo.tsx` — variants: `mark` / `lockup` / `seal`
 - `components/brand/Splash.tsx` — заставка (SessionStorage, ≤ 2.2 с)
-- `components/InteractiveScene.tsx` — інтерактивна Three.js scenka «Площа Конституції» на головній
-- День/ніч перемикач, рухомі об'єкти (автівки, люди, пропади), клік по об'єкту відкриває розділ сайту
+- `components/InteractiveScene.tsx` — інтерактивна Three.js сценка «AI Ugoda · Верховна Рада» / «Київ. Площа Конституції» на головній
+- День/ніч: «☀ Світла» / «🌙 Ніч» — перемикає **світлу/темну тему всього сайту** (`theme-light` + localStorage)
+- Рухомі об'єкти (автівки, люди, пропливи, прапори), клік по об'єкту відкриває розділ сайту
+- Будинки навколо сцени прибрано; повторне лого з `layout.tsx` прибрано
 
 **K3 — База даних:**
 - PostgreSQL 16 + pgvector + pg_trgm (Docker)
@@ -42,7 +72,7 @@ AI Ugoda — юридична інтелектуальна платформа д
 - Інтерактивна Three.js scenka на головній замість статичного логотипу
 
 **K6 — Базова аналітика акта:**
-- Ендпоінт `/api/v1/stats` (documents, revisions, provisions, links)
+- Ендпоінт `/api/v1/stats` (documents, revisions, provisions, links) — **публічний**, без JWT (щоб дашборд показував реальні числа)
 - Ендпоінт `/api/v1/documents/{id}/summary` (AIService.summarize_act)
 
 **K7 — Безпека (виконано):**
@@ -79,12 +109,13 @@ AI Ugoda — юридична інтелектуальна платформа д
 
 ## 3. Технічні деталі
 
-### 3.1 Логотип (K2)
+### 3.1 Логотип і сцена (K2)
 - `components/brand/Logo.tsx` — variants: `mark` / `lockup` / `seal`
 - `components/brand/Splash.tsx` — заставка (SessionStorage, 2.2с)
 - `app/icon.svg` — SVG логотип (160×160, scales)
-- `components/InteractiveScene.tsx` — інтерактивна Three.js scenka на головній
-- Підключено: `layout.tsx`, `shell.tsx`, `uk/page.tsx`, `three/page.tsx`
+- `components/InteractiveScene.tsx` — інтерактивна Three.js сценка: титул «AI Ugoda · Верховна Рада», місце «Київ. Площа Конституції», 7 гарячих зон → розділи сайту
+- Тема: `document.documentElement.classList.toggle("theme-light")` + `localStorage["ai-ugoda-theme"]`; inline-скрипт у `layout.tsx` відновлює тему до рендеру
+- Підключено: `layout.tsx` (заставка), `shell.tsx` (лого меню), `uk/page.tsx`, `three/page.tsx` (сценка)
 
 ### 3.2 База даних (K3)
 - PostgreSQL 16 + pgvector + pg_trgm (Docker)
@@ -111,7 +142,8 @@ AI Ugoda — юридична інтелектуальна платформа д
 ### 3.5 Тестування
 - pytest: 23 passed, 2 skipped (FTS потребує PostgreSQL; 3 навантажувальних тести)
 - Тести TestClient використовують SQLite in-memory (override get_db) — не потребують PostgreSQL
-- ruff: 0 помилок
+- Тести 401 перевірено на `/api/v1/bookmarks` (захищений); `/api/v1/stats` тепер публічний
+- ruff: 0 помилок; tsc --noEmit: 0 помилок; next build: успішно
 - bandit: 6 LOW
 - pip-audit: 98 CVE у 16 пакетах
 - npm audit: 2 вразливості (postcss)
@@ -151,8 +183,9 @@ AI Ugoda — юридична інтелектуальна платформа д
 |------|------|
 | `components/brand/Logo.tsx` | Логотип «Терези рівноваги» |
 | `components/brand/Splash.tsx` | Заставка (SessionStorage) |
-| `components/InteractiveScene.tsx` | Інтерактивна 3D scenka (Three.js) |
-| `app/layout.tsx` | Кореневий layout з логотипом |
+| `components/InteractiveScene.tsx` | Інтерактивна 3D сценка + день/ніч → тема сайту |
+| `styles/globals.css` | CSS-змінні теми + світла тема (`.theme-light`) |
+| `app/layout.tsx` | Кореневий layout: заставка, скрипт відновлення теми (повторне лого прибрано) |
 | `components/reference/shell.tsx` | Оболонка з логотипом, сайдбар, модальний пошук |
 | `app/icon.svg` | SVG логотип для favicon |
 
@@ -205,10 +238,11 @@ docker exec aiugoda_api alembic upgrade head
 - **Репозиторій:** `https://github.com/dev-arthur-petrunko/AI_Ugoda`
 - **Автор:** Arthur Petrunko <arthurpetrunko@gmail.com>
 - **Гілка:** `main`
-- **Останній коміт:** `14bfebc` (K10: Add AI service with RAG pipeline and ask endpoint)
-- **Робоче дерево:** чисте
+- **Останній коміт:** `ec92b70` (Remove duplicate logo from root layout)
+- **Ключові коміти:** `f92536e` (K7–K12), `44f5386` (K4 sync), `c109d5f` (сцена + світла тема + публічний stats), `ec92b70` (повторне лого)
+- **Робоче дерево:** чисте, запушено в origin/main
 
 ---
 
-**Дата:** 30.10.2026
+**Дата:** 02.11.2026
 **Автор:** Arthur Petrunko <arthurpetrunko@gmail.com>
