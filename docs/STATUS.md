@@ -1,6 +1,6 @@
 # AI Ugoda — Статус проєкту (повний звіт)
 
-Дата: 04.11.2026 (оновлено після спринтів S0, S1)
+Дата: 04.11.2026 (оновлено після спринтів S0, S1, S1.5, S2)
 Автор: Arthur Petrunko <arthurpetrunko@gmail.com>
 Гілка: main @ f7428f9 (Docs: consolidate to 3 files); зміни S0/S1 у робочому дереві, не закомічені
 
@@ -85,7 +85,26 @@
 
 **Перевірки:** `tsc --noEmit` → 0; `ruff check app` → All checks passed; `pytest -q` → **23 passed, 2 skipped**; обидва сервіси перезапущено (3000/8000). Після підключення `/uk/conflicts` у консолі браузера було знайдено React-попередження «two children with the same key» (тимчасові кандидати мають `id=None` → `str(None)="None"`): виправлено fallback-key у `conflicts.py` і `conflicts/page.tsx` → 4/4 унікальних id, **0 помилок консолі** (перевірено `browser.console` після reload).
 
-**Чесно не зроблено (потрібні ключі/рішення):** LLM-провайдер (`AI_PROVIDER=mock`, потрібні ключі GROQ/OpenAI/Anthropic), embeddings не заповнені (5 сид-актів), юридичне рев'ю K12, підпис K12, скриншоти S1 (потрібне видиме вікно Review).
+**Чесно не зроблено (потрібні ключі/рішення):** LLM-провайдер (`AI_PROVIDER=mock`, потрібні ключі GROQ/OpenAI/Anthropic), embeddings не заповнені (5 сид-актів), юридичне рев'ю K12, підпис K12.
+
+### S2 — Playwright + CI (04.11.2026) ✅ виконано
+
+**Playwright (скриншоти S1 знято headless — без видимого вікна):**
+- `apps/web/playwright.config.ts` — chromium, `baseURL=localhost:3000`, `reuseExistingServer` (webServer), html-звіт
+- `apps/web/e2e/s1-acceptance.spec.ts` — приймання S1: `<canvas>` 1, рівно один «AI Ugoda», `getComputedStyle(h1)` ⊃ Playfair Display, body ⊃ Inter, лічильник «актів», 0 помилок консолі; пошук: «Знайдено: 5», 5 унікальних href без дублів, 2 фільтри дати; smoke 14 сторінок → 200
+- `apps/web/e2e/auth.spec.ts` — S1.5: реєстрація+вхід через UI → JWT у `localStorage` → `/api/v1/bookmarks` з токеном → 200 → вихід
+- **Результат: 17 passed (54.3s), 0 failed** — `npx playwright test`
+- **Скриншоти для приймання:** `apps/web/e2e/screenshots/s1-home.png` (767 KB), `s1-search.png` (94 KB) — зняті, показані в Review
+- Скрипт: `npm run test:e2e` (у `apps/web/package.json`)
+
+**CI (`.github/workflows/ci.yml`):**
+- Job `web`: Node 20, `npm ci`, `tsc --noEmit`, `playwright install chromium`, service `pgvector/pgvector:pg16`; артефакти playwright-report/test-results/screenshots при помилці
+- Job `api`: Python 3.12, `requirements.txt`, `ruff check app`, `alembic upgrade head`, `pytest -q`; env (`DATABASE_URL`, `AUTH_DISABLED=true`, `SECRET_KEY=ci-…`) — секрети не в репозиторії
+- Тригери: push/PR у `main`
+
+**`.gitignore`:** додано `playwright-report/`, `test-results/`, `.playwright/` (скриншоти-докази `e2e/screenshots/` — у git).
+
+**Що залишилось із плану:** S3 (подальший аудит за планом v5) після приймання S1–S2; LLM-ключі, юр-рев'ю K12, CVE-огновлення — очікують рішення власника (див. вище).
 
 ## 0. Останні зміни (01–02.11.2026)
 
