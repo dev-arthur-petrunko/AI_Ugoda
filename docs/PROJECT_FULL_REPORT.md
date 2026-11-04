@@ -1,6 +1,6 @@
 # AI Ugoda — Full Project Report
 
-Дата оновлення: 02.11.2026
+Дата оновлення: 04.11.2026
 
 ## 1. Overview
 AI Ugoda is a Ukrainian legal intelligence platform. It provides:
@@ -57,16 +57,21 @@ docker-compose.yml
 
 ## 5. Search
 - `SearchService` supports filtering by type/status/authority/dates/legal force level.
-- Full-text via LIKE over title/normalized text/provision text.
+- Full-text via LIKE over title/normalized text/provision text (SQLite) or Ukrainian FTS (`plainto_tsquery('ukrainian', ...)` + `title ILIKE`) on PostgreSQL.
+- `_normalize` keeps Unicode letters (`[^\w\s"-]` + `re.UNICODE`) — Cyrillic queries are no longer stripped.
+- Results are document-level: no join to `legal_provisions` (subqueries/`EXISTS` instead), so `total` (COUNT DISTINCT) always equals `len(items)`; duplicates eliminated 04.11.2026.
 - Suggestions and search by provision (article number).
 
 ## 6. Frontend
 - Pages: `/uk` overview, legislation search/detail, admin, bookmarks, monitoring, contracts, plus explanatory pages (changes, conflicts, legal-map, assistant, reports, settings, workspace).
 - API client in `src/lib/api.ts` (stats, documents, sync, analysis, bookmarks, monitoring, contracts).
+- **Same-origin API**: `API_BASE = ""` — requests go to `/api/*` and are proxied by `next.config.js` rewrites to the backend (removes CORS, `localhost` vs `127.0.0.1`, baked-in API address). Network failures surface as «Немає зв'язку з сервером» instead of raw "Failed to fetch".
 - Design tokens unified in `globals.css` (single `:root`).
-- **Interactive 3D scene** (`components/InteractiveScene.tsx`, Three.js): title «AI Ugoda · Верховна Рада», place «Київ. Площа Конституції», 7 hotspots navigate to site sections; drag to rotate, wheel to zoom, click to open section.
+- **Fonts**: `h1`/`h2`/`.brand b` → `var(--font-playfair), 'Playfair Display', serif`; `body` → `var(--font-inter), system-ui, sans-serif` (cyclic `--font-*:var(--font-*)` declarations removed — they made `font-family` fall back to Times).
+- **Interactive 3D scene** (`components/InteractiveScene.tsx`, Three.js): title «AI Ugoda · Верховна Рада», place «Київ. Площа Конституції», 7 hotspots navigate to site sections; drag to rotate, wheel to zoom, click to open section. Neighbor/distant houses and 36 perimeter black blocks removed per design request.
 - **Day/night toggle** («☀ Світла» / «🌙 Ніч»): night = dark theme (default); light = `theme-light` class on `<html>` switching the **whole site** to a light theme via CSS variables in `globals.css`. Persisted in `localStorage["ai-ugoda-theme"]`, restored before first paint by inline script in `layout.tsx`.
-- Logo: Splash (session, ≤2.2s) + sidebar lockup; duplicate root-layout logo removed.
+- Logo: Splash (session, ≤2.2s) + sidebar lockup; duplicate root-layout logo and duplicate sidebar text removed — exactly one «AI Ugoda» in the UI.
+- Route states: `loading.tsx` / `error.tsx` / `not-found.tsx` for all 13 `/uk/*` segments + root; search page has loading/error/success state machine with «Повторити» retry.
 
 ## 7. Docker
 - Services: postgres (pgvector/pgvector:pg16), redis, api, web, worker.
@@ -91,7 +96,7 @@ Key variables (see `.env` / `.env.example`):
 - `NEXT_PUBLIC_API_URL`
 
 ## 10. Known Limitations / Next Steps
-- Ukrainian morphology for FTS implemented (migration 0005, hunspell-uk in Docker image) but NOT verified against live PostgreSQL (Docker unavailable in this environment).
+- Ukrainian FTS verified against live PostgreSQL (03.11.2026): `plainto_tsquery('ukrainian','життя')` → «Стаття 3», `alembic_version=516775f2e1d9`.
 - Embeddings are not yet generated (column exists, data not populated).
 - Some pages are informational/static (assistant, changes, conflicts, contracts, legal-map, monitoring, reports, settings, workspace).
 - CSS tokens partly aliased (`--cream` vs `--text`).
@@ -178,3 +183,12 @@ Full history in git log.
 - `/api/v1/stats` was 401 for anonymous users → made public; 401 tests moved to protected `/bookmarks`.
 - Duplicate root-layout `<Logo size={80}>` removed (duplicated sidebar logo on every page).
 - Scene card CSS class mismatch (`iu-sec` → `iu-card-sec`).
+- Search: `_normalize` regex `[^a-zA-Z0-9_\s"-]` stripped Cyrillic → query became `''` → filter never applied; fixed to `[^\w\s"-]` with `re.UNICODE`.
+- Search duplicates: join to `legal_provisions` multiplied rows (`total=5`, `items=7`); replaced with subqueries/`EXISTS` → `total == len(items)` (04.11.2026).
+- React warning "two children with the same key" on search page → key `${d.id}-${i}`.
+- Endless «завантаження…»: `.catch(() => {})` swallowed errors → `statsErr` state with «немає зв'язку з API» / «Повторити».
+- Times font: cyclic `--font-*:var(--font-*)` in `:root` invalid → removed; `h1`/`h2`/`body` now use `var(--font-playfair)` / `var(--font-inter)`.
+- Duplicate sidebar logo text in `shell.tsx` removed (exactly one «AI Ugoda»).
+- Scene: 36 black perimeter blocks removed (04.11.2026) — looked like black houses around the scene.
+- `lib/api.ts`: incomplete `requestJson` removed (broke compilation); network errors now raised in Ukrainian.
+- SQLite schema drift (`no such column: legal_provisions.embedding`) — active DB is PostgreSQL; `data/aiugoda.db` is stale and test-only.

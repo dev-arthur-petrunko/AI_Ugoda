@@ -13,7 +13,21 @@ async def list_conflicts(db: Session = Depends(get_db), current_user=Depends(get
     """Список колізій (кандидатів)."""
     engine = ConflictEngine(db)
     conflicts = engine.run_all()
-    return {"items": conflicts, "total": len(conflicts)}
+    items = [
+        {
+            "id": str(c.id),
+            "conflict_type": c.conflict_type,
+            "confidence": c.confidence,
+            "review_status": c.review_status,
+            "rule_applied": c.rule_applied,
+            "explanation": c.explanation,
+            "provision_a_id": str(c.provision_a_id),
+            "provision_b_id": str(c.provision_b_id),
+            "winner_provision_id": str(c.winner_provision_id) if c.winner_provision_id else None,
+        }
+        for c in conflicts
+    ]
+    return {"items": items, "total": len(items)}
 
 
 @router.get("/{conflict_id}")

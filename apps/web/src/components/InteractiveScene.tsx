@@ -565,22 +565,7 @@ export default function InteractiveScene({
     add(root, B(12, 0.5, 12), 0x77705f, 0, -0.25, 0);
     add(root, B(12.6, 1.3, 12.6), 0x24202c, 0, -0.7, 0);
 
-    // columns around plaza
-    for (let s = 0; s < 4; s++) {
-      for (let i = 0; i < 9; i++) {
-        const u = -5.6 + i * 1.4;
-        const p = [[u, 6.36], [u, -6.36], [6.36, u], [-6.36, u]][s];
-        const m = new THREE.Mesh(
-          B(1.36, 0.78, 0.72),
-          new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.68 + rnd() * 0.03, 0.13, 0.27 + rnd() * 0.1), flatShading: true, roughness: 0.9 }),
-        );
-        m.position.set(p[0], 0.08, p[1]);
-        m.rotation.y = s < 2 ? 0 : 1.5708;
-        m.castShadow = true;
-        m.receiveShadow = true;
-        root.add(m);
-      }
-    }
+    // (perimeter dark blocks removed per design request — looked like black houses)
 
     // walls / building masses
     fl(12, 1.2, 0, -5.4, 0x3d6b2f);
@@ -1022,52 +1007,8 @@ export default function InteractiveScene({
     mo.position.set(-30, 28, -34);
     S.add(mo);
 
-    const SKM = new THREE.MeshBasicMaterial({ color: 0x14121a, fog: false });
-    for (let i = 0; i < 70; i++) {
-      const a = (i / 70) * 6.2832 + rnd() * 0.05;
-      const r = 30 + rnd() * 6;
-      const h = 1 + rnd() * 3.5;
-      const m = new THREE.Mesh(B(1 + rnd() * 1.6, h, 1 + rnd() * 1.2), SKM);
-      m.position.set(Math.sin(a) * r, h / 2 - 1.2, Math.cos(a) * r);
-      S.add(m);
-    }
-
-    const LP = 260;
-    const lpp = new Float32Array(LP * 3);
-    for (let i = 0; i < LP; i++) {
-      const a = rnd() * 6.28;
-      const r = 29 + rnd() * 7;
-      lpp[i * 3] = Math.sin(a) * r;
-      lpp[i * 3 + 1] = -1 + rnd() * 3.5;
-      lpp[i * 3 + 2] = Math.cos(a) * r;
-    }
-    const lpg = new THREE.BufferGeometry();
-    lpg.setAttribute("position", new THREE.BufferAttribute(lpp, 3));
-    const lpM = new THREE.PointsMaterial({ color: 0xffd27a, size: 0.28, fog: false, transparent: true, opacity: 0.85 });
-    S.add(new THREE.Points(lpg, lpM));
-
-    [
-      [-6, -11],
-      [0, -12.5],
-      [6, -11],
-    ].forEach((p) => {
-      const g = new THREE.Group();
-      g.position.set(p[0], 0, p[1]);
-      S.add(g);
-      [
-        [-0.25, -0.25],
-        [0.25, -0.25],
-        [-0.25, 0.25],
-        [0.25, 0.25],
-      ].forEach((q) => {
-        const l = new THREE.Mesh(B(0.06, 6.5, 0.06), new THREE.MeshBasicMaterial({ color: 0x6f757c }));
-        l.position.set(q[0] * 1.4, 3.2, q[1] * 1.4);
-        g.add(l);
-      });
-      const hd = new THREE.Mesh(B(1.1, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
-      hd.position.y = 6.6;
-      g.add(hd);
-    });
+    // (city silhouette, city lights and 3 background towers removed per
+    //  design request — they read as black buildings around the scene)
 
     // (distant house removed per design request)
 

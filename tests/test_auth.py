@@ -60,10 +60,10 @@ def test_stats_401_without_token() -> None:
     assert response.status_code == 401, response.text
 
 
-def test_documents_401_without_token() -> None:
-    """Запит без токена до /api/v1/documents має повертати 401."""
+def test_documents_public_without_token() -> None:
+    """Читання /api/v1/documents публічне без токена (план §5.3). Захищені /bookmarks — див. test_stats_401_without_token."""
     response = client.get("/api/v1/documents")
-    assert response.status_code == 401, response.text
+    assert response.status_code == 200, response.text
 
 
 def test_register_success() -> None:

@@ -29,9 +29,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [q, setQ] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [stats, setStats] = useState<{ documents: number; revisions: number; provisions: number; links: number } | null>(null);
+  const [statsErr, setStatsErr] = useState(false);
 
   useEffect(() => {
-    getStats().then(setStats).catch(() => {});
+    let alive = true;
+    getStats()
+      .then((s) => {
+        if (alive) {
+          setStats(s);
+          setStatsErr(false);
+        }
+      })
+      .catch(() => {
+        if (alive) setStatsErr(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -73,9 +87,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <aside className={`side glass ${sideOpen ? "open" : ""}`}>
           <div className="brand">
             <Logo variant="lockup" size={34} />
-            <b>
-              <i>AI</i> Ugoda
-            </b>
           </div>
           <div id="nav">
             <div className="grp">Розділи</div>
@@ -110,7 +121,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <div className="chip">
               Актів у БД
               <br />
-              <b>{stats ? `${stats.documents} актів · ${stats.provisions} статей` : "завантаження…"}</b>
+              <b>{stats ? `${stats.documents} актів · ${stats.provisions} статей` : statsErr ? "немає зв'язку з API" : "завантаження…"}</b>
             </div>
           </header>
           <section className="view" tabIndex={-1}>

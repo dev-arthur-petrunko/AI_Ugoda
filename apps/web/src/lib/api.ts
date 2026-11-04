@@ -1,16 +1,50 @@
-﻿export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+﻿// Same-origin: усі запити йдуть на /api/* і проксіюються Next.js (rewrites у
+// next.config.js) на бекенд. Це прибирає CORS, розбіжності localhost/127.0.0.1
+// та адресу API, вшиту в збірку, назавжди (аудит v5, §4).
+export const API_BASE = "";
+
+// --- JWT: зберігаємо токен у localStorage, підставляємо в Authorization ----
+const TOKEN_KEY = "aiugoda_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem(TOKEN_KEY, token);
+  else window.localStorage.removeItem(TOKEN_KEY);
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-  });
+  // Мережева помилка або CORS перекладаються українською, щоб UI не показував
+  // сирий "Failed to fetch" (аудит v5, S1).
+  let res: Response;
+  try {
+    const token = getToken();
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error("Немає зв'язку з сервером. Перевірте, чи запущено API.");
+  }
+  if (res.status === 401) {
+    throw new AuthError("Сесія завершена. Увійдіть знову, будь ласка.");
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
+
+export class AuthError extends Error {}
 
 export type DocumentItem = {
   id: string;
@@ -30,9 +64,11 @@ export async function getStats() {
   return request<{ documents: number; revisions: number; provisions: number; links: number }>("/api/v1/stats");
 }
 
-export async function listDocuments(q = "", limit = 20, offset = 0) {
+export async function listDocuments(q = "", limit = 20, offset = 0, adoptionDateFrom = "", adoptionDateTo = "") {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
+  if (adoptionDateFrom) params.set("adoption_date_from", adoptionDateFrom);
+  if (adoptionDateTo) params.set("adoption_date_to", adoptionDateTo);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   return request<{ total: number; limit: number; offset: number; items: DocumentItem[] }>(`/api/v1/documents?${params}`);
@@ -110,4 +146,58 @@ export async function getContract(contractId: string) {
 }
 export async function deleteContract(contractId: string) {
   return request<any>(`/api/v1/contracts/${contractId}`, { method: "DELETE" });
+}
+
+// Conflicts
+export async function getConflicts() {
+  return request<{ items: any[]; total: number }>("/api/v1/conflicts/");
+}
+
+// AI assistant
+export async function askAI(question: string, documentId?: string) {
+  const params = new URLSearchParams({ question });
+  if (documentId) params.set("document_id", documentId);
+  return request<any>(`/api/v1/ai/ask?${params}`, { method: "POST" });
+}
+
+// Graph (зв'язки акта)
+export async function getGraph(documentId: string, depth = 2) {
+  return request<{ document_id: string; depth: number; nodes: any[]; edges: any[] }>(
+    `/api/v1/graph/${documentId}?depth=${depth}`,
+  );
+}
+
+// --- Auth ------------------------------------------------------------------
+/** Вхід: OAuth2 password flow → { access_token, token_type }. Токен кладемо в localStorage. */
+export async function login(email: string, password: string) {
+  const body = new URLSearchParams({ username: email, password });
+  const data = await request<{ access_token: string; token_type: string }>("/api/v1/auth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  setToken(data.access_token);
+  return data;
+}
+
+export async function register(email: string, password: string) {
+  return request<any>("/api/v1/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function logout() {
+  setToken(null);
+}
+
+export async function refreshAccessToken() {
+  const token = getToken();
+  if (!token) throw new AuthError("Немає токена");
+  const data = await request<{ access_token: string }>("/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  setToken(data.access_token);
+  return data;
 }

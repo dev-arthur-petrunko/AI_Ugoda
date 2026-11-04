@@ -5,11 +5,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getStats } from "@/lib/api";
 
+const TODAY = (() => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
+})();
+
 const REV = [
   ["01.03.2023", "Платник зобов'язаний подати <del>звіт</del> у строк <del>20</del> днів."],
   ["15.09.2023", "Платник зобов'язаний подати <ins>декларацію</ins> у строк <del>20</del> днів."],
   ["01.01.2024", "Платник зобов'язаний подати декларацію у строк <ins>30</ins> днів."],
-  ["Сьогодні", "Платник зобов'язаний подати декларацію у строк 30 днів<ins>, а за порушення сплачує штраф</ins>."],
+  [TODAY, "Платник зобов'язаний подати декларацію у строк 30 днів<ins>, а за порушення сплачує штраф</ins>."],
 ];
 
 const LV = [
@@ -29,7 +35,18 @@ export default function OverviewPage() {
   const router = useRouter();
   const [sl, setSl] = useState(3);
   const [stats, setStats] = useState<{ documents: number; revisions: number; provisions: number; links: number } | null>(null);
-  useEffect(() => { getStats().then(setStats).catch(() => {}); }, []);
+  const [statsErr, setStatsErr] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getStats()
+      .then((s) => {
+        if (alive) { setStats(s); setStatsErr(false); }
+      })
+      .catch(() => {
+        if (alive) setStatsErr(true);
+      });
+    return () => { alive = false; };
+  }, []);
   const r = REV[sl];
 
   const ladder = LV.map((n, i) => {
@@ -66,12 +83,12 @@ export default function OverviewPage() {
           <div className="law" dangerouslySetInnerHTML={{ __html: "Стаття N. " + r[1] }} />
           <div className="meta">Редакція від {r[0]}</div>
           <input type="range" min={0} max={3} value={sl} onChange={(e) => setSl(Number(e.target.value))} aria-label="Редакція" />
-          <div className="ticks">
+          <span className="ticks">
             <span>2023</span>
             <span>2023</span>
             <span>2024</span>
-            <span>сьогодні</span>
-          </div>
+            <span>{TODAY}</span>
+          </span>
         </div>
         <div className="glass card">
           <h2>Хто кого перебиває</h2>
@@ -92,7 +109,7 @@ export default function OverviewPage() {
           </div>
           <div className="st">
             <span>Імпортовано актів</span>
-            <span>{stats ? `${stats.documents} актів · ${stats.revisions} редакцій · ${stats.provisions} статей` : "завантаження…"}</span>
+            <span>{stats ? `${stats.documents} актів · ${stats.revisions} редакцій · ${stats.provisions} статей` : statsErr ? "помилка завантаження (API недоступний)" : "завантаження…"}</span>
           </div>
           <div className="st">
             <span>Колізій виявлено</span>

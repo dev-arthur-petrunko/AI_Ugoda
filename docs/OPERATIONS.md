@@ -9,6 +9,7 @@
 ### Режим розробки (зараз активний)
 - **Активна БД:** PostgreSQL 16 (Docker, контейн `aiugoda_postgres`) — зараз працює саме вона.
 - **Резерв/dev:** SQLite `apps/api/test.db` або `data/aiugoda.db` — використовується **лише тестами** (TestClient override на SQLite in-memory).
+- **⚠️ `data/aiugoda.db` застарів** (немає `alembic_version` і колонки `legal_provisions.embedding`): запуск uvicorn проти SQLite дає **500** на `/api/v1/stats`. Не використовуйте його як робочу БД — активна БД тільки PostgreSQL.
 - **Змінна середовища:** `DATABASE_URL` у файлі `.env` (корінь проєкту)
 - **Приклад (PostgreSQL):** `DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@localhost:5432/aiugoda`
 
@@ -79,7 +80,7 @@ python -c "import sys; sys.path.insert(0, r'C:\Users\Arthur\Desktop\AI Ugoda\app
 | Юридичне рев'ю (K12) | — | ⚠️ Очікує підпису юриста (див. STATUS.md, розділ «Юридичне рев'ю K12») |
 
 ### ✅ Реалізовано з безпеки
-- CORS (тільки `http://localhost:3000` у розробці)
+- CORS (тільки `http://localhost:3000` у розробці); **UI працює same-origin** (`API_BASE=""` + rewrites Next.js) — CORS для фронтенду не потрібен
 - SQL-ін'єкції: параметризовані запити SQLAlchemy (тести `test_sql_injection.py`)
 - JWT / RBAC: `deps.py` (декодування токена, ролі user/admin, перевірка `is_superuser`)
 - Rate limiting: Redis + in-memory fallback, 120 req/min
@@ -123,7 +124,10 @@ npx next start -p 3000
 # 7. Перевірити
 # http://127.0.0.1:8000/health          -> {"status":"ok"}
 # http://127.0.0.1:8000/api/v1/stats     -> {"documents":5,...} (публічний)
+# http://127.0.0.1:8000/api/v1/documents?limit=50 -> total == кількість items (без дублів)
 # http://127.0.0.1:3000/uk               -> 200
+# http://127.0.0.1:3000/api/v1/stats     -> 200 (прокси same-origin, CORS не потрібен)
+# /conflicts без слеша віддає 307 -> /conflicts/ (штатний trailing-slash FastAPI), за ним 200
 
 # 8. Тести (з кореня проєкту, не з apps/api!)
 cd "C:\Users\Arthur\Desktop\AI Ugoda"
@@ -151,5 +155,5 @@ ruff check apps/api        # 0 помилок
 
 ---
 
-**Останнє оновлення:** 02.11.2026  
+**Останнє оновлення:** 04.11.2026  
 **Автор:** Arthur Petrunko <arthurpetrunko@gmail.com>

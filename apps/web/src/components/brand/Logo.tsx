@@ -41,7 +41,7 @@ export function Logo({ variant = "mark", size = 34, animated = false, className 
       <span className="lg-lock" style={{ display: "inline-flex", alignItems: "center", gap: Math.round(size * 0.35) }}>
         <Mark px={size} />
         <span>
-          <b style={{ font: `600 ${Math.round(size * 0.68)}px/1 var(--font-display, "Playfair Display"), serif` }}>
+          <b style={{ font: `600 ${Math.round(size * 0.68)}px/1 var(--font-playfair, "Playfair Display"), serif` }}>
             <i style={{ fontStyle: "normal", color: "#E8C871" }}>AI</i>{" "}
             <span style={{ color: "#F3E6BC" }}>Ugoda</span>
           </b>
@@ -49,7 +49,7 @@ export function Logo({ variant = "mark", size = 34, animated = false, className 
             <small
               style={{
                 display: "block",
-                font: "500 11px var(--font-ui, Inter), sans-serif",
+                font: "500 11px var(--font-inter, Inter), sans-serif",
                 letterSpacing: ".14em",
                 color: "#B3A28A",
                 marginTop: 6,

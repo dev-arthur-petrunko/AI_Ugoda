@@ -72,12 +72,17 @@ class SearchService:
         return res, total
 
     def _normalize(self, q: str) -> str:
-        q = re.sub(r"[^a-zA-Z0-9_\\s\"-]", " ", q, flags=re.UNICODE)
+        # Зберігаємо символи всіх алфавітів (\w з re.UNICODE включає кирилицю),
+        # інакше український запит видаляється повністю й пошук не фільтрує.
+        q = re.sub(r"[^\w\s\"-]", " ", q, flags=re.UNICODE)
         q = re.sub(r"\s+", " ", q).strip()
         return q
 
     def _sql(self, q: str, filters: SearchFilters, limit: int, offset: int):
-        base = "SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, r.id as revision_id, r.revision_date, r.normalized_text, p.provision_identifier, p.text as provision_text, substr(p.text, 1, 200) as snippet, NULL as matched_provision, 1.0 as rank FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id LEFT JOIN legal_provisions p ON p.document_revision_id = r.id"
+        # Без join на legal_provisions: кілька статей у редакції давали дублі
+        # документів у видачі (total за COUNT(DISTINCT id) ≠ len(items)).
+        # Проvisions шукаємо через EXISTS — рядок на документ, не на статтю.
+        base = "SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, r.id as revision_id, r.revision_date, r.normalized_text, (SELECT substr(p2.text, 1, 200) FROM legal_provisions p2 WHERE p2.document_revision_id = r.id LIMIT 1) as snippet, NULL as matched_provision, 1.0 as rank FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
         where = []
         params = {"limit": limit, "offset": offset}
         if filters.document_type:
@@ -102,17 +107,23 @@ class SearchService:
             where.append("(r.effective_to IS NULL OR r.effective_to >= date('now'))")
         if q:
             if self._is_postgres():
-                where.append("(p.search_vector @@ plainto_tsquery('ukrainian', :fts) OR d.title ILIKE :fts_like)")
+                where.append(
+                    "(d.title ILIKE :fts_like OR EXISTS (SELECT 1 FROM legal_provisions p JOIN document_revisions pr ON pr.id = p.document_revision_id WHERE pr.legal_document_id = d.id AND p.search_vector @@ plainto_tsquery('ukrainian', :fts)))"
+                )
                 params["fts"] = q
                 params["fts_like"] = f"%{q}%"
             else:
-                where.append("(d.title LIKE :fts OR r.normalized_text LIKE :fts OR p.text LIKE :fts)")
+                where.append(
+                    "(d.title LIKE :fts OR EXISTS (SELECT 1 FROM document_revisions pr WHERE pr.legal_document_id = d.id AND pr.normalized_text LIKE :fts) OR EXISTS (SELECT 1 FROM legal_provisions p JOIN document_revisions pr ON pr.id = p.document_revision_id WHERE pr.legal_document_id = d.id AND p.text LIKE :fts))"
+                )
                 params["fts"] = f"%{q}%"
         where_sql = " WHERE " + " AND ".join(where) if where else ""
         return base + where_sql + " ORDER BY rank DESC, d.adoption_date DESC LIMIT :limit OFFSET :offset", params
 
     def _cnt_sql(self, q: str, filters: SearchFilters):
-        base = "SELECT COUNT(DISTINCT d.id) FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id LEFT JOIN legal_provisions p ON p.document_revision_id = r.id"
+        # Ті самі умови, що й у _sql, але без join на provisions — COUNT має
+        # збігатися з кількістю рядків видачі (див. коментар у _sql).
+        base = "SELECT COUNT(DISTINCT d.id) FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
         where = []
         params = {}
         if filters.document_type:
@@ -137,11 +148,15 @@ class SearchService:
             where.append("(r.effective_to IS NULL OR r.effective_to >= date('now'))")
         if q:
             if self._is_postgres():
-                where.append("(p.search_vector @@ plainto_tsquery('ukrainian', :fts) OR d.title ILIKE :fts_like)")
+                where.append(
+                    "(d.title ILIKE :fts_like OR EXISTS (SELECT 1 FROM legal_provisions p JOIN document_revisions pr ON pr.id = p.document_revision_id WHERE pr.legal_document_id = d.id AND p.search_vector @@ plainto_tsquery('ukrainian', :fts)))"
+                )
                 params["fts"] = q
                 params["fts_like"] = f"%{q}%"
             else:
-                where.append("(d.title LIKE :fts OR r.normalized_text LIKE :fts OR p.text LIKE :fts)")
+                where.append(
+                    "(d.title LIKE :fts OR EXISTS (SELECT 1 FROM document_revisions pr WHERE pr.legal_document_id = d.id AND pr.normalized_text LIKE :fts) OR EXISTS (SELECT 1 FROM legal_provisions p JOIN document_revisions pr ON pr.id = p.document_revision_id WHERE pr.legal_document_id = d.id AND p.text LIKE :fts))"
+                )
                 params["fts"] = f"%{q}%"
         where_sql = " WHERE " + " AND ".join(where) if where else ""
         return base + where_sql, params

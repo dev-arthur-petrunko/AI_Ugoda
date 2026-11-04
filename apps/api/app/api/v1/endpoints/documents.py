@@ -2,7 +2,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.services.search import SearchFilters, SearchService
 
@@ -22,7 +21,7 @@ async def list_documents(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    # Публічне читання без авторизації (K5 / план §5.3); запис — тільки з токеном.
 ):
     search_service = SearchService(db)
     filters = SearchFilters(
@@ -63,7 +62,7 @@ async def get_suggestions(
     q: str = Query(..., min_length=2, description="Часткова назва для автозаповнення"),
     limit: int = Query(10, ge=1, le=20),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    # Публічне читання без авторизації (K5 / план §5.3); запис — тільки з токеном.
 ):
     search_service = SearchService(db)
     suggestions = search_service.get_suggestions(q, limit)
@@ -74,7 +73,7 @@ async def get_suggestions(
 async def search_by_provision(
     provision_ref: str = Query(..., description="Посилання на статтю (напр. 'Стаття 15')"),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    # Публічне читання без авторизації (K5 / план §5.3); запис — тільки з токеном.
 ):
     search_service = SearchService(db)
     items = search_service.search_by_provision(provision_ref)
@@ -103,7 +102,7 @@ async def search_by_provision(
 async def get_document(
     document_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    # Публічне читання без авторизації (K5 / план §5.3); запис — тільки з токеном.
 ):
     from app.models.document_revision import DocumentRevision
     from app.models.legal_document import LegalDocument
@@ -146,7 +145,7 @@ async def get_document(
 
 
 @router.get("/{document_id}/provisions")
-async def get_provisions(document_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+async def get_provisions(document_id: str, db: Session = Depends(get_db)):
     from app.models.document_revision import DocumentRevision
     from app.models.legal_document import LegalDocument
     from app.models.legal_provision import LegalProvision
@@ -164,7 +163,7 @@ async def get_provisions(document_id: str, db: Session = Depends(get_db), curren
 
 
 @router.get("/{document_id}/revisions")
-async def get_revisions(document_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+async def get_revisions(document_id: str, db: Session = Depends(get_db)):
     from app.models.document_revision import DocumentRevision
     from app.models.legal_document import LegalDocument
     doc = db.get(LegalDocument, document_id)
@@ -176,7 +175,7 @@ async def get_revisions(document_id: str, db: Session = Depends(get_db), current
 
 
 @router.get("/{document_id}/at")
-async def get_at(document_id: str, date: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+async def get_at(document_id: str, date: str, db: Session = Depends(get_db)):
     from datetime import date as ddate
 
     from app.models.document_revision import DocumentRevision
