@@ -15,7 +15,7 @@ async def list_conflicts(db: Session = Depends(get_db), current_user=Depends(get
     conflicts = engine.run_all()
     items = [
         {
-            "id": str(c.id),
+            "id": str(c.id) if c.id is not None else f"{c.conflict_type}:{c.provision_a_id}:{c.provision_b_id}",
             "conflict_type": c.conflict_type,
             "confidence": c.confidence,
             "review_status": c.review_status,

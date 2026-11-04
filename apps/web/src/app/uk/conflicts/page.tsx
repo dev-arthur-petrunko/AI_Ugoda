@@ -96,8 +96,8 @@ export default function ConflictsPage() {
             <>
               <p className="tag" style={{ marginBottom: 8 }}>Всього: {total}</p>
               <div className="space-y-2">
-                {items.map((c) => (
-                  <div key={c.id} className="lvl">
+                {items.map((c, i) => (
+                  <div key={c.id || i} className="lvl">
                     <span>
                       <b>{TYPE_LABELS[c.conflict_type] || c.conflict_type}</b>
                       <br />

@@ -83,7 +83,7 @@
 - `/uk/workspace`: список приватних договорів `GET /contracts` (завантаження файлів — наступні етапи)
 - `/uk/legislation`: фільтри «Прийнято від/до» (дата) на сторінці пошуку
 
-**Перевірки:** `tsc --noEmit` → 0; `ruff check app` → All checks passed; `pytest -q` → **23 passed, 2 skipped**; обидва сервіси перезапущено (3000/8000).
+**Перевірки:** `tsc --noEmit` → 0; `ruff check app` → All checks passed; `pytest -q` → **23 passed, 2 skipped**; обидва сервіси перезапущено (3000/8000). Після підключення `/uk/conflicts` у консолі браузера було знайдено React-попередження «two children with the same key» (тимчасові кандидати мають `id=None` → `str(None)="None"`): виправлено fallback-key у `conflicts.py` і `conflicts/page.tsx` → 4/4 унікальних id, **0 помилок консолі** (перевірено `browser.console` після reload).
 
 **Чесно не зроблено (потрібні ключі/рішення):** LLM-провайдер (`AI_PROVIDER=mock`, потрібні ключі GROQ/OpenAI/Anthropic), embeddings не заповнені (5 сид-актів), юридичне рев'ю K12, підпис K12, скриншоти S1 (потрібне видиме вікно Review).
 
