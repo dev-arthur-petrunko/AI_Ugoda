@@ -28,6 +28,8 @@ class LegalDocument(Base, TimestampMixin, UUIDMixin):
     valid_until_condition: Mapped[str | None] = mapped_column(String(500), nullable=True)  # умовна дата дії (наприклад «для дії воєнного стану»)
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # S3.2: official | fixture (за замовчуванням fixture; official — реальний імпорт з rada.gov.ua)
+    data_origin: Mapped[str] = mapped_column(String(20), nullable=False, default="fixture", server_default="fixture", index=True)
 
     revisions: Mapped[list["DocumentRevision"]] = relationship(
         back_populates="document", cascade="all, delete-orphan", order_by="DocumentRevision.revision_date.desc()"

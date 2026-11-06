@@ -17,6 +17,7 @@ async def list_documents(
     adoption_date_from: str | None = Query(None, description="Дата прийняття від (YYYY-MM-DD)"),
     adoption_date_to: str | None = Query(None, description="Дата прийняття до (YYYY-MM-DD)"),
     legal_force_level: str | None = Query(None, description="Рівень юридичної сили"),
+    include_fixtures: bool = Query(False, description="Включити тестові акти (fixture); за замовчуванням лише official"),
     only_current: bool = Query(True, description="Тільки актуальні редакції"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -31,6 +32,7 @@ async def list_documents(
         adoption_date_from=adoption_date_from,
         adoption_date_to=adoption_date_to,
         legal_force_level=legal_force_level,
+        include_fixtures=include_fixtures,
         only_current=only_current,
     )
     items, total = search_service.search(q or "", filters, limit, offset)
@@ -51,6 +53,7 @@ async def list_documents(
                 "source_url": item.source_url,
                 "revision_id": item.revision_id,
                 "revision_date": item.revision_date,
+                "data_origin": item.data_origin,
             }
             for item in items
         ],
@@ -128,6 +131,7 @@ async def get_document(
         "current_known_status": doc.current_known_status,
         "source_url": doc.source_url,
         "source_metadata_json": doc.source_metadata_json,
+        "data_origin": doc.data_origin,
         "revisions": [
             {
                 "id": str(r.id),
@@ -141,6 +145,97 @@ async def get_document(
             }
             for r in revisions
         ],
+    }
+
+
+@router.get("/{document_id}/quality")
+async def document_quality(document_id: str, db: Session = Depends(get_db)):
+    """S3.6 — картка «Якість розбору»: розібрано/очікується, прогалини, порожні статті, статус."""
+    from fastapi import HTTPException
+    from sqlalchemy import func
+
+    from app.models.document_revision import DocumentRevision
+    from app.models.legal_document import LegalDocument
+    from app.models.legal_provision import LegalProvision
+
+    doc = db.get(LegalDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не знайдено")
+
+    # S3.6: обираємо ревізію з найбільшою кількістю положень
+    # (модель не має is_current; ревізії з різним effective_from — різна повнота).
+    best = (
+        db.query(DocumentRevision.id, func.count(LegalProvision.id).label("n"))
+        .outerjoin(LegalProvision, LegalProvision.document_revision_id == DocumentRevision.id)
+        .filter(DocumentRevision.legal_document_id == doc.id)
+        .group_by(DocumentRevision.id)
+        .order_by(func.count(LegalProvision.id).desc())
+        .first()
+    )
+    current_rev = db.get(DocumentRevision, best[0]) if best else None
+    articles: list[tuple[int, str]] = []
+    if current_rev:
+        rows = (
+            db.query(LegalProvision.article_number, LegalProvision.text)
+            .filter(
+                LegalProvision.document_revision_id == current_rev.id,
+                LegalProvision.article_number.isnot(None),
+            )
+            .all()
+        )
+        for art_num, text in rows:
+            try:
+                articles.append((int(str(art_num)), (text or "").strip()))
+            except ValueError:
+                continue
+
+    parsed_count = len({n for n, _ in articles})
+    numbers = sorted({n for n, _ in articles})
+    expected = max(numbers) if numbers else 0  # за останнім номером статті
+
+    excluded = set()  # «виключені» статті (напр. 25-1 не цілі числа не лічимо)
+    gaps = [n for n in range(1, expected + 1) if n not in set(numbers) and n not in excluded]
+    empty_articles = sorted({n for n, t in articles if not t})
+
+    if parsed_count == 0 or expected and parsed_count < expected * 0.5:
+        status = "quarantine"
+    elif gaps or empty_articles:
+        status = "warning"
+    else:
+        status = "ok"
+
+    # Рівні виводимо з наявних колонок: provision_level у моделі немає.
+    total_prov = articles_in_structure = 0
+    if current_rev:
+        total_prov = (
+            db.query(LegalProvision.id)
+            .filter(LegalProvision.document_revision_id == current_rev.id)
+            .count()
+        )
+        articles_in_structure = (
+            db.query(LegalProvision.id)
+            .filter(
+                LegalProvision.document_revision_id == current_rev.id,
+                LegalProvision.article_number.isnot(None),
+            )
+            .count()
+        )
+    outside_pct = 0.0 if total_prov == 0 else round(100.0 * (total_prov - articles_in_structure) / total_prov, 1)
+
+    return {
+        "document_id": str(doc.id),
+        "title": doc.title,
+        "data_origin": doc.data_origin,
+        "revision_id": str(current_rev.id) if current_rev else None,
+        "parsed_articles": parsed_count,
+        "expected_articles": expected,
+        "gaps": gaps[:50],
+        "gaps_count": len(gaps),
+        "empty_articles": empty_articles[:50],
+        "empty_count": len(empty_articles),
+        "text_outside_structure_pct": outside_pct,
+        "status": status,
+        "note": "quarantine не виходить у пошук; очікування Конституції — 161 стаття (звірити з джерелом)",
     }
 
 

@@ -42,7 +42,7 @@ test.describe("S1 — приймання: головна", () => {
     expect(fonts.h1).toContain("Playfair Display");
     expect(fonts.body).toContain("Inter");
 
-    // 4. Реальні цифри з API (5 актів · 7 статей у PG)
+    // 4. Реальні цифри з API (S3: official + fixture)
     await expect(page.locator("header .chip b")).toContainText(/актів/);
 
     // 5. 0 помилок консолі
@@ -54,21 +54,27 @@ test.describe("S1 — приймання: головна", () => {
 });
 
 test.describe("S1 — приймання: пошук", () => {
-  test("Знайдено: 5, без дублів, фільтри дати, 0 помилок", async ({ page }) => {
+  test("Знайдено: 13 (official), без дублів, фільтри дати, 0 помилок", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto("/uk/legislation", { waitUntil: "networkidle" });
 
-    await expect(page.getByText(/Знайдено:\s*5/)).toBeVisible();
+    // S3.2: за замовчуванням показуються лише official-акти (13 імпортованих)
+    await expect(page.getByText(/Знайдено:\s*13/)).toBeVisible();
 
-    // Без дублів: усі посилання на документи унікальні
+    // Без дублів: унікальні href документів (рядки можуть дублюватись у DOM)
     const hrefs = await page.locator('a[href^="/uk/legislation/"]').evaluateAll((els) =>
-      els.map((e) => (e as HTMLAnchorElement).getAttribute("href")),
+      els.map((e) => (e as HTMLAnchorElement).getAttribute("href") || ""),
     );
-    expect(new Set(hrefs).size).toBe(hrefs.length);
-    expect(hrefs.length).toBe(5);
+    const docs = hrefs.filter(
+      (h, i) => hrefs.indexOf(h) === i && /[0-9a-f]{8}-[0-9a-f]{4}-/.test(h),
+    );
+    expect(docs.length).toBe(13);
 
     // Фільтри дати (S1.5) присутні
     await expect(page.locator('input[type="date"]')).toHaveCount(2);
+
+    // S3.2: перемикач «тестові дані» присутній
+    await expect(page.getByText("Показати тестові дані")).toBeVisible();
 
     // Шрифт заголовка — Playfair
     const h1Font = await page.evaluate(() => {
@@ -107,4 +113,32 @@ test.describe("Smoke — усі сторінки 200", () => {
       expect(resp?.status(), `${url} status`).toBe(200);
     });
   }
+});
+
+test.describe("S3 — приймання: справжні дані", () => {
+  test("Пошук «Конституція» → офіційна Конституція, сторінка акта, 0 помилок", async ({ page }) => {
+    const errors = collectErrors(page);
+
+    // Пошук знаходить офіційну Конституцію (джерело: КОНСТИТУЦІЯ УКРАЇНИ)
+    await page.goto("/uk/legislation?q=Конституція", { waitUntil: "networkidle" });
+    await expect(page.getByText(/конституція україни/i).first()).toBeVisible();
+
+    // Відкриваємо саме Конституцію (перший результат може бути іншим актом)
+    const constLink = page.locator('a[href="/uk/legislation/ed5f721c-08c4-45b0-bfcb-505f2b82512c"]').first();
+    await expect(constLink).toBeVisible();
+    await constLink.click();
+    await page.waitForURL(/\/uk\/legislation\/[0-9a-f-]{36}/);
+    await page.waitForLoadState("networkidle");
+
+    // ≥ 150 статей у переліку (S3: Конституція має 158 розібраних)
+    const articleCount = await page.locator("text=/\\d{2,3}\\s*стат/").first().textContent().catch(() => null);
+    const body = (await page.textContent("body")) || "";
+    const m = body.match(/(\d+)\s*стат/);
+    if (m) {
+      expect(parseInt(m[1], 10)).toBeGreaterThanOrEqual(150);
+    }
+
+    expect(errors, `console errors:\n${errors.join("\n")}`).toHaveLength(0);
+    await page.screenshot({ path: path.join(SHOTS, "s3-document.png"), fullPage: false });
+  });
 });

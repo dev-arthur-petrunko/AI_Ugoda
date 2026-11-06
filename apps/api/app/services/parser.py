@@ -74,7 +74,7 @@ class ZakonRadaParser:
         raw_checksum = hashlib.sha256(html.encode("utf-8")).hexdigest()
 
         title = self._extract_title(soup)
-        meta = self._extract_metadata(soup, source_url)
+        meta = self._extract_metadata(soup, source_url, title=title)
         body = self._find_body_container(soup)
         provisions = self._parse_hierarchy(body, meta["source_id"])
         self._assign_ordinals(provisions)
@@ -97,13 +97,21 @@ class ZakonRadaParser:
         )
 
     def _extract_title(self, soup: BeautifulSoup) -> str:
-        for sel in ["h1.law-title", "h1.title", ".document-title h1", "h1"]:
+        for sel in ["h1.law-title", "h1.title", ".document-title h1", "h1", "title"]:
             el = soup.select_one(sel)
             if el:
-                return el.get_text(strip=True)
+                t = re.sub(r"\s+", " ", el.get_text(" ", strip=True)).strip()
+                if t:
+                    return t[:500]
+        # S3.5: у .frame-фрагментах немає <h1>/<title> — заголовок це перший
+        # непорожній span.rvts* (див. zakon.rada.gov.ua/laws/show/{nreg}.frame).
+        for el in soup.select("span[class*=rvts]"):
+            t = re.sub(r"\s+", " ", el.get_text(" ", strip=True)).strip()
+            if t:
+                return t[:500]
         return "Без назви"
 
-    def _extract_metadata(self, soup: BeautifulSoup, source_url: str) -> dict[str, Any]:
+    def _extract_metadata(self, soup: BeautifulSoup, source_url: str, title: str = "") -> dict[str, Any]:
         meta = {
             "source_id": self._extract_source_id(source_url),
             "document_type": None,
@@ -123,18 +131,25 @@ class ZakonRadaParser:
                 self._parse_meta_table(table, meta)
                 break
 
-        nreg_match = re.search(r"/main/(\d+[-\w]*)", source_url)
+        # S3.5: /show/{nreg} або /main/{nreg} — nreg може містити «/» (254к/96-вр)
+        nreg_match = re.search(r"/(?:show|main)/(.+?)(?:\.frame)?/?$", source_url)
         if nreg_match:
-            meta["nreg"] = nreg_match.group(1)
+            from urllib.parse import unquote
 
-        meta["document_type"] = self._infer_document_type(meta.get("title", ""))
+            meta["nreg"] = unquote(nreg_match.group(1)).rstrip("/")
+
+        # S3.5: тип виводимо з витягнутого заголовка (meta не має ключа "title")
+        meta["document_type"] = self._infer_document_type(title)
 
         return meta
 
     def _extract_source_id(self, source_url: str) -> str:
-        match = re.search(r"/main/([^/?#]+)", source_url)
+        # S3.5: nreg може містити «/» (254к/96-вр) — беремо до .frame/кінця
+        match = re.search(r"/(?:main|show)/(.+?)(?:\.frame)?/?$", source_url)
         if match:
-            slug = match.group(1).lower()
+            from urllib.parse import unquote
+
+            slug = unquote(match.group(1)).lower()
             slug = re.sub(r"[^\w\-]", "-", slug)
             slug = re.sub(r"-\+", "-", slug).strip("-")
             return slug[:100]
@@ -231,6 +246,19 @@ class ZakonRadaParser:
 
         elements = container.find_all(["div", "p", "h2", "h3", "h4", "h5", "span", "li"])
 
+        # S3.5: прибрати дублі зі змісту (TOC): посилання-якорі class="stru"
+        # повторюють назви статей; реальний текст — у p.rvps* без a.stru.
+        elements = [
+            el
+            for el in elements
+            if el.find("a", class_="stru") is None
+            and el.find_parent("a", class_="stru") is None
+            and el.find_parent("aside", class_="stru") is None  # зміст (TOC)
+            and el.find_parent(id="Stru") is None
+        ]
+
+        seen_keys: set[tuple[str, str]] = set()
+
         for el in elements:
             text = el.get_text(" ", strip=True)
             if not text or len(text) < 3:
@@ -252,12 +280,30 @@ class ZakonRadaParser:
                     current_section.text += " " + clean_text
                 continue
 
+            # S3.5: дедуп. Номер статті унікальний у межах документа
+            # (span.rvts9-заголовок дублює p.rvps2-текст). Частини/пункти
+            # унікальні в межах батьківської статті/частини.
+            if level in ("article", "section"):
+                dedup_key = (level, number)
+            else:
+                dedup_key = (
+                    level,
+                    number,
+                    id(current_section),
+                    id(current_article),
+                    id(current_part),
+                    id(current_point),
+                )
+            if dedup_key in seen_keys:
+                continue
+            seen_keys.add(dedup_key)
+
             identifier = f"{act_id}/{level}/{number}"
             if level == "part" and current_article:
                 identifier = f"{act_id}/article/{current_article.number}/part/{number}"
-            elif level == "point" and current_part:
+            elif level == "point" and current_article and current_part:
                 identifier = f"{act_id}/article/{current_article.number}/part/{current_part.number}/point/{number}"
-            elif level == "subpoint" and current_point:
+            elif level == "subpoint" and current_article and current_part and current_point:
                 identifier = f"{act_id}/article/{current_article.number}/part/{current_part.number}/point/{current_point.number}/subpoint/{number}"
 
             node = ProvisionNode(

@@ -30,6 +30,8 @@ class DocumentRevision(Base, TimestampMixin, UUIDMixin):
     effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)  # дата вступу в чинність
     effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)    # дата втрати чинності
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # S3.3: хост джерела (лише data.rada.gov.ua / zakon.rada.gov.ua — білий список)
+    source_host: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     source_checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)  # SHA-256 сирого вмісту
     source_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)      # хеш нормалізованого тексту
     original_content_location: Mapped[str | None] = mapped_column(Text, nullable=True)

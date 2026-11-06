@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, date, datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -33,6 +34,14 @@ def _checksum(content: bytes | str | dict | None) -> str:
     if isinstance(content, str):
         content = content.encode("utf-8")
     return hashlib.sha256(content).hexdigest()
+
+
+def _host_of(url: str | None) -> str | None:
+    """S3.3: хост джерела для document_revisions.source_host."""
+    if not url:
+        return None
+    from urllib.parse import urlparse
+    return (urlparse(url).hostname or "").lower() or None
 
 
 class ImportService:
@@ -99,13 +108,25 @@ class ImportService:
         source_metadata_json: dict | None = None,
         is_temporary: bool = False,
         valid_until_condition: str | None = None,
+        data_origin: str = "fixture",
     ) -> LegalDocument:
         row = (
             self.db.query(LegalDocument)
             .filter(LegalDocument.source_id == source_id)
             .first()
         )
+        # S3.4: офіційний імпорт може зійтись із фікстурою за nreg
+        # (уникальний індекс uq_legal_documents_nreg) — «приймаємо» рядок фікстури
+        # і переводимо його в official, а не створюємо дублікат.
+        # Порівняння без урахування регістру: 254к/96-вр vs 254к/96-ВР.
+        if row is None and nreg:
+            row = (
+                self.db.query(LegalDocument)
+                .filter(func.lower(LegalDocument.nreg) == nreg.lower())
+                .first()
+            )
         if row:
+            row.source_id = source_id  # офіційний імпорт перетягує фікстурний source_id
             row.title = title
             row.document_type = document_type
             row.document_number = document_number
@@ -118,6 +139,7 @@ class ImportService:
             row.source_metadata_json = source_metadata_json or {}
             row.is_temporary = is_temporary
             row.valid_until_condition = valid_until_condition
+            row.data_origin = data_origin
             self.db.commit()
             self.db.refresh(row)
             return row
@@ -135,6 +157,7 @@ class ImportService:
             source_metadata_json=source_metadata_json or {},
             is_temporary=is_temporary,
             valid_until_condition=valid_until_condition,
+            data_origin=data_origin,
         )
         self.db.add(row)
         self.db.commit()
@@ -185,6 +208,7 @@ class ImportService:
             row.revision_date = revision_date
             row.effective_to = effective_to
             row.source_url = source_url
+            row.source_host = _host_of(source_url)  # S3.3
             row.source_checksum = _checksum(raw_payload or "")
             row.source_hash = _checksum(normalized_text or "")
             row.original_content_location = source_url
@@ -202,6 +226,7 @@ class ImportService:
             effective_from=effective_from,
             effective_to=effective_to,
             source_url=source_url,
+            source_host=_host_of(source_url),  # S3.3
             source_checksum=_checksum(raw_payload or ""),
             source_hash=_checksum(normalized_text or ""),
             original_content_location=source_url,
@@ -242,7 +267,7 @@ class ImportService:
             row.part_number = part_number
             row.point_number = point_number
             row.subpoint_number = subpoint_number
-            row.heading = heading
+            row.heading = heading[:500] if heading else heading  # S3.5: ліміт VARCHAR(500)
             row.text = text
             row.ordinal = ordinal
             row.parent_provision_id = parent_provision_id
@@ -252,12 +277,12 @@ class ImportService:
             return row
         row = LegalProvision(
             document_revision_id=revision.id,
-            provision_identifier=provision_identifier,
+            provision_identifier=provision_identifier[:100],
             article_number=article_number,
             part_number=part_number,
             point_number=point_number,
             subpoint_number=subpoint_number,
-            heading=heading,
+            heading=heading[:500] if heading else heading,  # S3.5: ліміт VARCHAR(500)
             text=text,
             ordinal=ordinal,
             parent_provision_id=parent_provision_id,
@@ -313,6 +338,7 @@ class ImportService:
             source_metadata_json={"parser_version": parsed.parser_version},
             is_temporary=parsed.is_temporary,
             valid_until_condition=parsed.valid_until_condition,
+            data_origin="official",  # S3.2: реальний імпорт з джерела
         )
 
         # 3. Створюємо редакцію

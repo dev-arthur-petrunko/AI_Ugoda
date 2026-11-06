@@ -22,6 +22,7 @@ class SearchFilters:
     effective_date_to: str | None = None
     legal_force_level: str | None = None
     only_current: bool = True
+    include_fixtures: bool = False  # S3.2: за замовчуванням лише official
 
 
 @dataclass
@@ -40,6 +41,7 @@ class SearchResult:
     snippet: str | None
     matched_provision: str | None
     rank: float
+    data_origin: str = "fixture"
 
 
 class SearchService:
@@ -68,6 +70,7 @@ class SearchService:
                 snippet=row.snippet,
                 matched_provision=row.matched_provision,
                 rank=row.rank,
+                data_origin=row.data_origin,
             ))
         return res, total
 
@@ -82,9 +85,11 @@ class SearchService:
         # Без join на legal_provisions: кілька статей у редакції давали дублі
         # документів у видачі (total за COUNT(DISTINCT id) ≠ len(items)).
         # Проvisions шукаємо через EXISTS — рядок на документ, не на статтю.
-        base = "SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, r.id as revision_id, r.revision_date, r.normalized_text, (SELECT substr(p2.text, 1, 200) FROM legal_provisions p2 WHERE p2.document_revision_id = r.id LIMIT 1) as snippet, NULL as matched_provision, 1.0 as rank FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
+        base = "SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, d.data_origin, r.id as revision_id, r.revision_date, r.normalized_text, (SELECT substr(p2.text, 1, 200) FROM legal_provisions p2 WHERE p2.document_revision_id = r.id LIMIT 1) as snippet, NULL as matched_provision, 1.0 as rank FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
         where = []
         params = {"limit": limit, "offset": offset}
+        if not filters.include_fixtures:
+            where.append("d.data_origin = 'official'")  # S3.2: пошук за замовчуванням лише official
         if filters.document_type:
             where.append("d.document_type = :document_type")
             params["document_type"] = filters.document_type
@@ -126,6 +131,8 @@ class SearchService:
         base = "SELECT COUNT(DISTINCT d.id) FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
         where = []
         params = {}
+        if not filters.include_fixtures:
+            where.append("d.data_origin = 'official'")  # S3.2: збігається з _sql
         if filters.document_type:
             where.append("d.document_type = :document_type")
             params["document_type"] = filters.document_type
@@ -180,7 +187,7 @@ class SearchService:
         if not match:
             return []
         article_num = match.group(1)
-        sql = """SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, r.id as revision_id, r.revision_date, p.provision_identifier, p.text as provision_text, 1.0 as rank FROM legal_documents d JOIN document_revisions r ON r.legal_document_id = d.id JOIN legal_provisions p ON p.document_revision_id = r.id WHERE p.article_number = :article_num ORDER BY d.adoption_date DESC NULLS LAST LIMIT 50"""
+        sql = """SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, d.data_origin, r.id as revision_id, r.revision_date, p.provision_identifier, p.text as provision_text, 1.0 as rank FROM legal_documents d JOIN document_revisions r ON r.legal_document_id = d.id JOIN legal_provisions p ON p.document_revision_id = r.id WHERE p.article_number = :article_num ORDER BY d.adoption_date DESC NULLS LAST LIMIT 50"""
         rows = self.db.execute(text(sql), {"article_num": article_num}).fetchall()
         return [
             SearchResult(
@@ -195,6 +202,7 @@ class SearchService:
                 snippet=None,
                 matched_provision=f"Стаття {article_num}",
                 rank=1.0,
+                data_origin=row.data_origin,
             )
             for row in rows
         ]

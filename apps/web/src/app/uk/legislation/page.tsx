@@ -10,6 +10,7 @@ export default function SearchPage() {
   const [sq, setSq] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [includeFixtures, setIncludeFixtures] = useState(false); // S3.2
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,7 @@ export default function SearchPage() {
     setLoading(true);
     const t = setTimeout(async () => {
       try {
-        const r = await listDocuments(sq, 50, 0, dateFrom, dateTo);
+        const r = await listDocuments(sq, 50, 0, dateFrom, dateTo, includeFixtures);
         if (!alive) return;
         setItems(r.items || []);
         setTotal(r.total || 0);
@@ -37,7 +38,7 @@ export default function SearchPage() {
       }
     }, 300);
     return () => { alive = false; clearTimeout(t); };
-  }, [sq, dateFrom, dateTo, retryTick]);
+  }, [sq, dateFrom, dateTo, includeFixtures, retryTick]);
 
   return (
     <>
@@ -72,6 +73,14 @@ export default function SearchPage() {
               style={{ minWidth: 150 }}
             />
           </label>
+          <label className="tag" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={includeFixtures}
+              onChange={(e) => setIncludeFixtures(e.target.checked)}
+            />
+            Показати тестові дані
+          </label>
           {(dateFrom || dateTo) && (
             <button
               className="btn s"
@@ -100,7 +109,14 @@ export default function SearchPage() {
           {!loading && !error && items.map((d, i) => (
             <Link key={`${d.id}-${i}`} href={`/uk/legislation/${d.id}`} className="lvl" style={{ textDecoration: "none" }}>
               <span>{d.title}</span>
-              <span className="tag">{d.document_type} · {d.current_known_status || "—"}</span>
+              <span className="tag">
+                {d.document_type} · {d.current_known_status || "—"}
+                {d.data_origin === "fixture" && (
+                  <span style={{ marginLeft: 8, padding: "1px 6px", borderRadius: 6, background: "rgba(255,196,0,.15)", color: "#d9a400", fontSize: 11 }}>
+                    тестові дані
+                  </span>
+                )}
+              </span>
             </Link>
           ))}
           {!loading && !error && items.length === 0 && (

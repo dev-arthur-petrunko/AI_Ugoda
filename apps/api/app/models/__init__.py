@@ -4,6 +4,7 @@ from app.models.conflict_candidate import ConflictCandidate  # noqa: F401
 from app.models.contract_analysis import ContractAnalysis  # noqa: F401
 from app.models.contract_document import ContractDocument  # noqa: F401
 from app.models.document_revision import DocumentRevision  # noqa: F401
+from app.models.import_run import ImportRun  # noqa: F401
 from app.models.legal_document import LegalDocument  # noqa: F401
 from app.models.legal_event import LegalEvent  # noqa: F401
 from app.models.legal_force_level import LegalForceLevel  # noqa: F401

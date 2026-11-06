@@ -34,7 +34,14 @@ const MARK = `<svg class="mark" viewBox="0 0 120 120"><defs><linearGradient id="
 export default function OverviewPage() {
   const router = useRouter();
   const [sl, setSl] = useState(3);
-  const [stats, setStats] = useState<{ documents: number; revisions: number; provisions: number; links: number } | null>(null);
+  const [stats, setStats] = useState<{
+    documents: number;
+    revisions: number;
+    provisions: number;
+    links: number;
+    documents_official?: number;
+    documents_fixture?: number;
+  } | null>(null);
   const [statsErr, setStatsErr] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -110,6 +117,16 @@ export default function OverviewPage() {
           <div className="st">
             <span>Імпортовано актів</span>
             <span>{stats ? `${stats.documents} актів · ${stats.revisions} редакцій · ${stats.provisions} статей` : statsErr ? "помилка завантаження (API недоступний)" : "завантаження…"}</span>
+          </div>
+          <div className="st">
+            <span>Походження даних</span>
+            <span>
+              {stats
+                ? `офіційних: ${stats.documents_official ?? 0} · тестових: ${stats.documents_fixture ?? 0}`
+                : statsErr
+                  ? "помилка завантаження"
+                  : "завантаження…"}
+            </span>
           </div>
           <div className="st">
             <span>Колізій виявлено</span>

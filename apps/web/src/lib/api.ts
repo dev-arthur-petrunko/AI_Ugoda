@@ -58,17 +58,34 @@ export type DocumentItem = {
   source_url: string | null;
   revision_id: string | null;
   revision_date: string | null;
+  data_origin?: "official" | "fixture";
 };
 
 export async function getStats() {
-  return request<{ documents: number; revisions: number; provisions: number; links: number }>("/api/v1/stats");
+  return request<{
+    documents: number;
+    revisions: number;
+    provisions: number;
+    links: number;
+    documents_official?: number;
+    documents_fixture?: number;
+    has_official?: boolean;
+  }>("/api/v1/stats");
 }
 
-export async function listDocuments(q = "", limit = 20, offset = 0, adoptionDateFrom = "", adoptionDateTo = "") {
+export async function listDocuments(
+  q = "",
+  limit = 20,
+  offset = 0,
+  adoptionDateFrom = "",
+  adoptionDateTo = "",
+  includeFixtures = false,
+) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (adoptionDateFrom) params.set("adoption_date_from", adoptionDateFrom);
   if (adoptionDateTo) params.set("adoption_date_to", adoptionDateTo);
+  if (includeFixtures) params.set("include_fixtures", "true"); // S3.2
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   return request<{ total: number; limit: number; offset: number; items: DocumentItem[] }>(`/api/v1/documents?${params}`);

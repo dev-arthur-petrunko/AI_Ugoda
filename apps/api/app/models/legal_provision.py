@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import ForeignKey, Integer, String, Text, TypeDecorator, UniqueConstraint
@@ -59,9 +59,16 @@ class LegalProvision(Base, TimestampMixin, UUIDMixin):
     heading: Mapped[str | None] = mapped_column(String(500), nullable=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
     embedding: Mapped[list[float] | None] = mapped_column(_VectorType(), nullable=True)
+    # S3: search_vector — GENERATED ALWAYS AS ... STORED у PostgreSQL (див. міграції
+    # 0003/0005). Він НЕ має потрапляти в INSERT/UPDATE ORM (psycopg2 дає
+    # "cannot insert a non-DEFAULT value into column search_vector").
+    # Колонка лишається у таблиці (створюється міграціями), читається сирим SQL
+    # (services/search.py: p.search_vector @@ plainto_tsquery).
     search_vector: Mapped[str | None] = mapped_column(_TSVectorType(), nullable=True)
     ordinal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content_checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    __mapper_args__: ClassVar[dict] = {"exclude_properties": ["search_vector"]}
 
     revision: Mapped["DocumentRevision"] = relationship(back_populates="provisions")
 
