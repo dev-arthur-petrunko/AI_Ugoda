@@ -41,6 +41,8 @@ docker-compose.yml
   - `0003_pgvector_fts` (pgvector + FTS)
   - `0004_unique_constraints` (unique constraints + dedup before constraint)
   - `0005_ukrainian_fts` (switch FTS config to Ukrainian Hunspell)
+  - `s3dataorigin` (`legal_documents.data_origin` official|fixture)
+  - `s3sources` (`document_revisions.source_host`, `import_runs`, raw cache)
 - IDs unified to `String(36)`.
 - Extensions enabled: `pg_trgm`, `vector`.
 - `legal_provisions` has:
@@ -79,10 +81,10 @@ docker-compose.yml
 - All services healthy.
 
 ## 8. Testing & Quality
-- Backend: `pytest` → 23 passed, 2 skipped (401 tests target protected `/bookmarks`; `/stats` is public).
+- Backend: `pytest` → 26 passed, 2 skipped (includes `tests/test_s3_import.py`: idempotency, duplicate revision, sync lock 409).
 - Lint: `ruff check` → 0 errors.
-- Frontend: `tsc --noEmit` → 0 errors; `next build` → successful (19 routes).
-- Local verification (02.11.2026): all 14 pages + `/three` return 200; `/health` ok; `/stats` returns real numbers (5 acts · 5 revisions · 7 provisions).
+- Frontend: `tsc --noEmit` → 0 errors; Playwright e2e → 18/18 (S1 acceptance, auth/JWT, 14-page smoke, S3 real-data acceptance).
+- Local verification (05.11.2026): all 14 pages + `/three` return 200; `/health` ok; `/stats` returns real numbers; API `quality` for the Constitution → parsed=158 / expected=161 / gaps=3 / status=warning.
 - Docker health: all healthy.
 
 ## 9. Environment Variables
@@ -192,3 +194,63 @@ Full history in git log.
 - Scene: 36 black perimeter blocks removed (04.11.2026) — looked like black houses around the scene.
 - `lib/api.ts`: incomplete `requestJson` removed (broke compilation); network errors now raised in Ukrainian.
 - SQLite schema drift (`no such column: legal_provisions.embedding`) — active DB is PostgreSQL; `data/aiugoda.db` is stale and test-only.
+
+## 16. Data Sources Verification (S3.1) — 05.11.2026
+
+Verified manually with `curl.exe -I` / `curl.exe -sS`, User-Agent `AIUgodaBot/0.1 (contact: arthurpetrunko@gmail.com)`. Whitelist: **only `data.rada.gov.ua` and `zakon.rada.gov.ua`** (double-checked: allowlist in `source_guard.py` + SQL check of `source_host`).
+
+### 16.1 data.rada.gov.ua — catalog API
+`curl.exe -I https://data.rada.gov.ua/ogd/zak/laws/list.json` → **200 OK**, `application/json`, 2058 bytes (dataset catalog, not the act list), nginx/1.19.0, `Access-Control-Allow-Origin: *`, `ETag`+`Last-Modified`, no 429/rate-limit observed, no auth required.
+
+### 16.2 data.rada.gov.ua — batch download (used)
+Dataset page `/open/data/docs` (redirect `/ogd/zak/laws/docs/`) provides archives:
+
+| File | HEAD | Size | Format |
+|---|---|---|---|
+| `.../data/csv/doc.zip` | **200 OK** | **13 503 543 bytes (13.5 MB)** | ZIP of TSV (document cards: id, nreg, title, dates) |
+| `.../data/csv/doc.txt` | **200 OK** | 51 709 072 bytes (50 MB), **295 568 lines** | TSV, encoding **windows-1251** |
+| `doc-update.zip`, `doc-dates.zip`, `ist.zip`, `links-csv.zip`, `public.zip`, `book.zip` | — | — | incremental/dictionaries |
+
+**Conclusion:** batch download **exists and is used** (`doc.zip`/`doc.txt`) instead of scraping HTML listing pages. Catalog `list.csv/json/xml` are dataset descriptions only (2 KB), not act lists.
+
+### 16.3 zakon.rada.gov.ua — act page (Constitution)
+`curl.exe -I -A "AIUgodaBot/0.1 (contact: …)" https://zakon.rada.gov.ua/laws/show/254к/96-вр` → **200 OK**, `text/html; charset=utf-8`, 35 086 bytes, `DocumentDate`/`Last-Modified` caching, no auth. Full texts are fetched as `.frame` fragments (`/laws/show/{nreg}.frame`) — the `/main/` shell has no act text.
+
+### 16.4 robots.txt and limits
+`https://data.rada.gov.ua/robots.txt`:
+```
+User-Agent: *
+Disallow: /
+```
+⚠️ **Limitation:** data.rada.gov.ua formally disallows all crawlers although the data is openly licensed (§16.5) and specific agents (Googlebot) are allowed. **Our constraints:** keep ≤1 req/s, honest UA with contact, use batch ZIP/TSV instead of thousands of small requests, cache (raw payload + SHA-256). Full `Disallow: /` compliance is an owner decision (recorded in STATUS.md).
+
+### 16.5 License / attribution
+Footer of `/open/data/docs`: all content under **Creative Commons Attribution 4.0 International (CC BY 4.0)** unless stated otherwise — https://creativecommons.org/licenses/by/4.0/deed.uk. **Attribution required.** Footer attribution added: **«Дані: Верховна Рада України, zakon.rada.gov.ua»** + «Незалежний сервіс. Не пов'язаний з Верховною Радою України».
+
+### 16.6 Tier 1 nreg cross-check vs `doc.txt` (05.11.2026)
+All 13 numbers verified against the official list (`line.split('\t')[1] == nreg`), exact character match:
+
+| Act | nreg | Source id | Result |
+|---|---|---|---|
+| Конституція України | `254к/96-вр` | ✅ id=12934 (Cyrillic «к», not Latin!) | match |
+| Цивільний кодекс | `435-15` | ✅ id=119580 | match |
+| Господарський кодекс | `436-15` | ✅ id=119467 | match |
+| Кримінальний кодекс | `2341-14` | ✅ id=82054 | match |
+| КУпАП | `80731-10` | ✅ id=23499 | match |
+| Податковий кодекс | `2755-17` | ✅ id=338198 | match |
+| Кодекс законів про працю | `322-08` | ✅ id=23605 | match |
+| Сімейний кодекс | `2947-14` | ✅ id=95712 | match |
+| Земельний кодекс | `2768-14` | ✅ id=91145 | match |
+| Кримінальний процесуальний кодекс | `4651-17` | ✅ id=378204 | match |
+| Цивільний процесуальний кодекс | `1618-15` | ✅ id=145512 | match |
+| Господарський процесуальний кодекс | `1798-12` | ✅ id=23125 | match |
+| Кодекс адміністративного судочинства | `2747-15` | ✅ id=179703 | match |
+
+**No discrepancies.** Note: `doc.txt` is windows-1251 — decode with `cp1251` in Python, otherwise Cyrillic «к» in `254к/96-вр` won't match Latin «k» (cross-check was exact character match).
+
+### 16.7 Summary of limits
+1. `robots.txt`: `User-Agent: *` → `Disallow: /` — polite mode required (≤1 req/s, UA with contact, batch files, caching).
+2. Catalog `list.*` are not act lists; real data is in `/ogd/zak/laws/data/csv/*` (TSV, windows-1251) and `.zip` archives.
+3. License CC BY 4.0 — footer attribution mandatory.
+4. `zakon.rada.gov.ua/laws/show/{nreg}` — HTML with stable ETag/Last-Modified; use `.frame` for text.
+5. No public one-shot ZIP with all full article texts — full texts live in HTML (structure parsing — S3.5).
