@@ -3,69 +3,115 @@
 import InteractiveScene from "@/components/InteractiveScene";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getStats } from "@/lib/api";
+import Link from "next/link";
+import { getStats, listDocuments } from "@/lib/api";
+import {
+  Scale,
+  GitCompareArrows,
+  BellRing,
+  Bookmark,
+  BarChart3,
+  FolderOpen,
+  Search,
+  ArrowRight,
+} from "lucide-react";
 
-const TODAY = (() => {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
-})();
+type Stats = {
+  documents: number;
+  revisions: number;
+  provisions: number;
+  links: number;
+  documents_official?: number;
+  documents_fixture?: number;
+};
 
-const REV = [
-  ["01.03.2023", "Платник зобов'язаний подати <del>звіт</del> у строк <del>20</del> днів."],
-  ["15.09.2023", "Платник зобов'язаний подати <ins>декларацію</ins> у строк <del>20</del> днів."],
-  ["01.01.2024", "Платник зобов'язаний подати декларацію у строк <ins>30</ins> днів."],
-  [TODAY, "Платник зобов'язаний подати декларацію у строк 30 днів<ins>, а за порушення сплачує штраф</ins>."],
+type Doc = {
+  id: string;
+  title: string;
+  document_type: string | null;
+  current_known_status: string | null;
+  data_origin?: string;
+};
+
+const ACTIONS = [
+  {
+    href: "/uk/assistant",
+    icon: Scale,
+    title: "AI Юрист-дослідник",
+    desc: "Питання з цитуванням статей із бази",
+  },
+  {
+    href: "/uk/conflicts",
+    icon: GitCompareArrows,
+    title: "Протиріччя та колізії",
+    desc: "Хто кого перебиває: юридична сила норм",
+  },
+  {
+    href: "/uk/monitoring",
+    icon: BellRing,
+    title: "Моніторинг",
+    desc: "Слідкувати за змінами актів і статей",
+  },
+  {
+    href: "/uk/bookmarks",
+    icon: Bookmark,
+    title: "Закладки",
+    desc: "Збережені акти та положення",
+  },
+  {
+    href: "/uk/reports",
+    icon: BarChart3,
+    title: "Звіти",
+    desc: "Показники бази законодавства",
+  },
+  {
+    href: "/uk/workspace",
+    icon: FolderOpen,
+    title: "Мої документи",
+    desc: "Приватне сховище завантажених файлів",
+  },
 ];
-
-const LV = [
-  "Конституція України",
-  "Міжнародні договори (ратифіковані)",
-  "Закони та кодекси",
-  "Постанови Верховної Ради",
-  "Укази Президента",
-  "Постанови Кабінету Міністрів",
-  "Накази міністерств",
-  "Акти місцевих органів",
-];
-
-const MARK = `<svg class="mark" viewBox="0 0 120 120"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8F6F2B"/><stop offset=".5" stop-color="#E8C871"/><stop offset="1" stop-color="#A67C2E"/></linearGradient></defs><path class="u" pathLength="1" d="M30 24V62a30 30 0 0 0 60 0V24" fill="none" stroke="url(#g)" stroke-width="7" stroke-linecap="round"/><circle class="pt p1" cx="30" cy="22" r="6.5" fill="url(#g)"/><circle class="pt p2" cx="90" cy="22" r="6.5" fill="url(#g)"/><path class="pt sl" d="M60 86l8 8-8 8-8-8z" fill="url(#g)"/></svg>`;
 
 export default function OverviewPage() {
   const router = useRouter();
-  const [sl, setSl] = useState(3);
-  const [stats, setStats] = useState<{
-    documents: number;
-    revisions: number;
-    provisions: number;
-    links: number;
-    documents_official?: number;
-    documents_fixture?: number;
-  } | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [statsErr, setStatsErr] = useState(false);
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [docsErr, setDocsErr] = useState(false);
+  const [q, setQ] = useState("");
+
   useEffect(() => {
     let alive = true;
     getStats()
       .then((s) => {
-        if (alive) { setStats(s); setStatsErr(false); }
+        if (alive) {
+          setStats(s);
+          setStatsErr(false);
+        }
       })
       .catch(() => {
         if (alive) setStatsErr(true);
       });
-    return () => { alive = false; };
+    listDocuments("", 8, 0)
+      .then((r) => {
+        if (alive) {
+          setDocs(r.items || []);
+          setDocsErr(false);
+        }
+      })
+      .catch(() => {
+        if (alive) setDocsErr(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
-  const r = REV[sl];
 
-  const ladder = LV.map((n, i) => {
-    const hi = i === 2;
-    const lo = i === 6;
-    return (
-      <div key={i} className={`lvl ${hi ? "hi" : lo ? "lo" : ""}`}>
-        <span>{n}</span>
-        <span className="tag">{hi ? "перемагає" : lo ? "поступається" : ""}</span>
-      </div>
-    );
-  });
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = q.trim();
+    router.push(query ? `/uk/legislation?q=${encodeURIComponent(query)}` : "/uk/legislation");
+  };
 
   return (
     <>
@@ -73,70 +119,121 @@ export default function OverviewPage() {
         <div>
           <h1>Законодавство, яке видно наскрізь</h1>
           <p className="lead">
-            Закон на будь-яку дату, колізії між нормами і ризики простою мовою. Кожне твердження має посилання на статтю.
+            Закон на будь-яку дату, колізії між нормами і ризики простою мовою. Кожне твердження має
+            посилання на статтю.
           </p>
-          <div className="row">
-            <button className="btn p" onClick={() => router.push("/uk/legislation")}>Знайти статтю</button>
-            <button className="btn s" onClick={() => router.push("/uk/conflicts")}>Хто кого перебиває</button>
-          </div>
+          <form className="row" onSubmit={submitSearch}>
+            <input
+              className="field"
+              style={{ maxWidth: 360 }}
+              placeholder="Наприклад: податковий кодекс, строк позовної давності…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Пошук законодавства"
+            />
+            <button className="btn p" type="submit">
+              <Search className="h-4 w-4" style={{ marginRight: 6, verticalAlign: -2 }} />
+              Знайти статтю
+            </button>
+          </form>
         </div>
         <InteractiveScene className="hero-scene" height="460px" />
       </div>
 
+      {/* Швидкі дії */}
       <div className="grid">
-        <div className="glass card">
-          <h2>Закон на дату</h2>
-          <p className="sm">Перетягніть повзунок: зміни підсвічуються. Приклад інтерфейсу, не реальний текст закону.</p>
-          <div className="law" dangerouslySetInnerHTML={{ __html: "Стаття N. " + r[1] }} />
-          <div className="meta">Редакція від {r[0]}</div>
-          <input type="range" min={0} max={3} value={sl} onChange={(e) => setSl(Number(e.target.value))} aria-label="Редакція" />
-          <span className="ticks">
-            <span>2023</span>
-            <span>2023</span>
-            <span>2024</span>
-            <span>{TODAY}</span>
+        {ACTIONS.map((a) => (
+          <Link key={a.href} href={a.href} className="glass card" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <a.icon className="h-4 w-4" />
+              <h2 style={{ margin: 0 }}>{a.title}</h2>
+            </div>
+            <p className="sm" style={{ margin: 0 }}>{a.desc}</p>
+          </Link>
+        ))}
+      </div>
+
+      {/* Реальні акти з бази */}
+      <div className="glass card" style={{ marginTop: 20 }}>
+        <div className="flex items-center justify-between gap-2">
+          <h2 style={{ margin: 0 }}>Акти в базі</h2>
+          <Link href="/uk/legislation" className="btn s">
+            Усі акти <ArrowRight className="h-4 w-4" style={{ marginLeft: 4, verticalAlign: -2 }} />
+          </Link>
+        </div>
+        <p className="sm">
+          {stats
+            ? `Офіційних: ${stats.documents_official ?? 0} · тестових: ${stats.documents_fixture ?? 0} · статей: ${stats.provisions}`
+            : statsErr
+              ? "Помилка завантаження (API недоступний)"
+              : "Завантаження…"}
+        </p>
+        {docsErr && <p className="tag">Не вдалося завантажити перелік актів.</p>}
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+          {!docsErr &&
+            docs.map((d) => (
+              <Link
+                key={d.id}
+                href={`/uk/legislation/${d.id}`}
+                className="lvl"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <span>{d.title}</span>
+                <span className="tag">
+                  {d.document_type || "Акт"} · {d.current_known_status || "—"}
+                  {d.data_origin === "fixture" && (
+                    <span style={{ marginLeft: 8, padding: "1px 6px", borderRadius: 6, background: "rgba(255,196,0,.15)", color: "#d9a400", fontSize: 11 }}>
+                      тестові дані
+                    </span>
+                  )}
+                </span>
+              </Link>
+            ))}
+          {!docsErr && docs.length === 0 && (
+            <span className="tag">Актів ще не імпортовано.</span>
+          )}
+        </div>
+      </div>
+
+      {/* Стан системи */}
+      <div className="glass card" style={{ marginTop: 20 }}>
+        <h2>Стан даних</h2>
+        <p className="sm">Чесний статус без вигаданих цифр.</p>
+        <div className="st">
+          <span>Актів · редакцій · статей</span>
+          <span>
+            {stats
+              ? `${stats.documents} · ${stats.revisions} · ${stats.provisions}`
+              : statsErr
+                ? "помилка завантаження"
+                : "завантаження…"}
           </span>
         </div>
-        <div className="glass card">
-          <h2>Хто кого перебиває</h2>
-          <p className="sm">Вища юридична сила перемагає. Приклад пари норм.</p>
-          {ladder}
-          <div className="why">Правило: вища сила. Закон перебиває наказ міністерства, тому наказ у цій частині не застосовується.</div>
+        <div className="st">
+          <span>Походження даних</span>
+          <span>
+            {stats
+              ? `офіційних: ${stats.documents_official ?? 0} · тестових: ${stats.documents_fixture ?? 0}`
+              : statsErr
+                ? "помилка завантаження"
+                : "завантаження…"}
+          </span>
         </div>
-        <div className="glass card">
-          <h2>Стан даних</h2>
-          <p className="sm">Чесний статус без вигаданих цифр.</p>
-          <div className="st">
-            <span>data.rada.gov.ua</span>
-            <span>очікує перевірки</span>
-          </div>
-          <div className="st">
-            <span>zakon.rada.gov.ua</span>
-            <span>очікує перевірки</span>
-          </div>
-          <div className="st">
-            <span>Імпортовано актів</span>
-            <span>{stats ? `${stats.documents} актів · ${stats.revisions} редакцій · ${stats.provisions} статей` : statsErr ? "помилка завантаження (API недоступний)" : "завантаження…"}</span>
-          </div>
-          <div className="st">
-            <span>Походження даних</span>
-            <span>
-              {stats
-                ? `офіційних: ${stats.documents_official ?? 0} · тестових: ${stats.documents_fixture ?? 0}`
-                : statsErr
-                  ? "помилка завантаження"
-                  : "завантаження…"}
-            </span>
-          </div>
-          <div className="st">
-            <span>Колізій виявлено</span>
-            <span>немає даних</span>
-          </div>
-          <div className="row">
-            <button className="btn s" onClick={() => alert("Реальний імпорт запускається в панелі адміністратора після перевірки джерел.")}>
-              Як запустити імпорт
-            </button>
-          </div>
+        <div className="st">
+          <span>Джерело текстів</span>
+          <span>zakon.rada.gov.ua (білий список)</span>
+        </div>
+        <div className="st">
+          <span>Колізій виявлено</span>
+          <span>{stats ? (stats.links ?? 0) : "—"}</span>
+        </div>
+        <div className="row">
+          <Link href="/uk/admin" className="btn s">
+            Панель адміністратора
+          </Link>
+          <Link href="/uk/changes" className="btn s">
+            Нові закони та зміни
+          </Link>
         </div>
       </div>
     </>

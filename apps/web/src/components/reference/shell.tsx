@@ -10,14 +10,14 @@ const NAV = [
   ["search", "Пошук законодавства", "/uk/legislation"],
   ["news", "Нові закони та зміни", "/uk/changes"],
   ["contracts", "Аналіз договорів", "/uk/contracts"],
-  ["ask", "AI Юрист-дослідник", "/uk"],
+  ["ask", "AI Юрист-дослідник", "/uk/assistant"],
   ["conflicts", "Протиріччя та колізії", "/uk/conflicts"],
-  ["map", "Карта законодавства", "/uk"],
-  ["watch", "Моніторинг", "/uk"],
-  ["docs", "Мої документи", "/uk"],
+  ["map", "Карта законодавства", "/uk/legal-map"],
+  ["watch", "Моніторинг", "/uk/monitoring"],
+  ["docs", "Мої документи", "/uk/workspace"],
   ["bookmarks", "Закладки", "/uk/bookmarks"],
-  ["reports", "Звіти", "/uk"],
-  ["settings", "Налаштування", "/uk"],
+  ["reports", "Звіти", "/uk/reports"],
+  ["settings", "Налаштування", "/uk/settings"],
   ["admin", "Панель адміністратора", "/uk/admin"],
 ];
 
@@ -68,11 +68,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   const activeId = (() => {
     if (pathname === "/uk/admin") return "admin";
-    if (pathname === "/uk/legislation") return "search";
+    if (pathname === "/uk/legislation" || pathname.startsWith("/uk/legislation/")) return "search";
     if (pathname === "/uk/changes") return "news";
     if (pathname === "/uk/contracts") return "contracts";
+    if (pathname === "/uk/assistant") return "ask";
     if (pathname === "/uk/conflicts") return "conflicts";
+    if (pathname === "/uk/legal-map") return "map";
+    if (pathname === "/uk/monitoring") return "watch";
+    if (pathname === "/uk/workspace") return "docs";
     if (pathname === "/uk/bookmarks") return "bookmarks";
+    if (pathname === "/uk/reports") return "reports";
+    if (pathname === "/uk/settings") return "settings";
     return "overview";
   })();
 
@@ -92,7 +98,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <div className="grp">Розділи</div>
             {NAV.map(([id, label, href], i) => (
               <span key={id}>
-                {i === 11 && <div className="grp">Адміністрування</div>}
+                {i === NAV.length - 1 && <div className="grp">Адміністрування</div>}
                 <button
                   className="nav"
                   data-go={id}

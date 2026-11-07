@@ -1,13 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { listDocuments } from "@/lib/api";
 import Link from "next/link";
 
 
 
 export default function SearchPage() {
-  const [sq, setSq] = useState("");
+  return (
+    <Suspense>
+      <SearchPageInner />
+    </Suspense>
+  );
+}
+
+function SearchPageInner() {
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") || "";
+  const [sq, setSq] = useState(initialQ);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [includeFixtures, setIncludeFixtures] = useState(false); // S3.2

@@ -85,7 +85,10 @@ class SearchService:
         # Без join на legal_provisions: кілька статей у редакції давали дублі
         # документів у видачі (total за COUNT(DISTINCT id) ≠ len(items)).
         # Проvisions шукаємо через EXISTS — рядок на документ, не на статтю.
-        base = "SELECT DISTINCT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, d.data_origin, r.id as revision_id, r.revision_date, r.normalized_text, (SELECT substr(p2.text, 1, 200) FROM legal_provisions p2 WHERE p2.document_revision_id = r.id LIMIT 1) as snippet, NULL as matched_provision, 1.0 as rank FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
+        # Один рядок на документ: JOIN «на всі редакції» + DISTINCT давав дублі,
+        # бо DISTINCT поширювався і на r.id (total=13, items=27). Обираємо
+        # одну актуальну редакцію корелейованим підзапросом (спільно для SQLite і PG).
+        base = "SELECT d.id, d.source_id, d.title, d.document_type, d.document_number, d.adoption_date, d.issuing_authority, d.current_known_status, d.source_url, d.data_origin, r.id as revision_id, r.revision_date, r.normalized_text, (SELECT substr(p2.text, 1, 200) FROM legal_provisions p2 WHERE p2.document_revision_id = r.id LIMIT 1) as snippet, NULL as matched_provision, 1.0 as rank FROM legal_documents d LEFT JOIN document_revisions r ON r.id = (SELECT r2.id FROM document_revisions r2 WHERE r2.legal_document_id = d.id ORDER BY (r2.effective_to IS NULL) DESC, r2.revision_date DESC NULLS LAST, r2.id DESC LIMIT 1)"
         where = []
         params = {"limit": limit, "offset": offset}
         if not filters.include_fixtures:
@@ -128,7 +131,9 @@ class SearchService:
     def _cnt_sql(self, q: str, filters: SearchFilters):
         # Ті самі умови, що й у _sql, але без join на provisions — COUNT має
         # збігатися з кількістю рядків видачі (див. коментар у _sql).
-        base = "SELECT COUNT(DISTINCT d.id) FROM legal_documents d LEFT JOIN document_revisions r ON r.legal_document_id = d.id"
+        # Та сама редакція, що й у _sql (один рядок на документ) — щоб only_current
+        # фільтрував ту саму редакцію, яку бачить користувач, а COUNT збігався з items.
+        base = "SELECT COUNT(DISTINCT d.id) FROM legal_documents d LEFT JOIN document_revisions r ON r.id = (SELECT r2.id FROM document_revisions r2 WHERE r2.legal_document_id = d.id ORDER BY (r2.effective_to IS NULL) DESC, r2.revision_date DESC NULLS LAST, r2.id DESC LIMIT 1)"
         where = []
         params = {}
         if not filters.include_fixtures:
