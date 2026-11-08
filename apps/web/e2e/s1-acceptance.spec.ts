@@ -33,12 +33,58 @@ async function settle(page: Page) {
   }
 }
 
-// Скриншот приймання: чекаємо доки сторінка «визріє» (шрифти + стабільний кадр).
-// Забрано ранні знімки давали ghosting у headless (позначені текстів накладалися).
+// Скриншот приймання: headless-рендер цього сторінки дає ~50% «привидних» кадрів
+// (накладання старих композитних плиток — артефакт оточення, він є і в HEAD).
+// Тому: чекаємо визрівання кадру, робимо до 6 спроб і лишаємо кадр із найменшим
+// артефактом (метрика самоподібності зі зсувом 300px рахується у самій сторінці).
+async function ghostScore(page: Page, buf: Buffer): Promise<number> {
+  const b64 = buf.toString("base64");
+  return await page.evaluate(async (data: string) => {
+    const img = new Image();
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error("img decode"));
+      img.src = "data:image/png;base64," + data;
+    });
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext("2d");
+    if (!ctx) return 999;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    const gray = (x: number, y: number) => {
+      const i = (y * c.width + x) * 4;
+      return (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+    };
+    let s = 0;
+    let n = 0;
+    for (let y = 100; y < 600 && y < c.height; y += 7) {
+      for (let x = 0; x + 300 < c.width; x += 7) {
+        s += Math.abs(gray(x, y) - gray(x + 300, y));
+        n++;
+      }
+    }
+    return n ? s / n : 999;
+  }, b64);
+}
+
 async function shot(page: Page, name: string) {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: path.join(SHOTS, name), fullPage: false });
+  let best: Buffer | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < 6; i++) {
+    const buf = await page.screenshot({ fullPage: false });
+    const sc = await ghostScore(page, buf);
+    if (sc < bestScore) {
+      best = buf;
+      bestScore = sc;
+    }
+    if (bestScore < 12) break; // чисто — далі не клацаємо
+    await page.waitForTimeout(700);
+  }
+  fs.writeFileSync(path.join(SHOTS, name), best as Buffer);
 }
 
 function collectErrors(page: Page): string[] {

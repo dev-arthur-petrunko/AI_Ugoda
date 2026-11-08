@@ -199,7 +199,7 @@
 
 | Позиція | Що зроблено | Доказ |
 |---|---|---|
-| 3.5 фікстури | Відновлено `apps/api/tests/fixtures/` (2 HTML + 1 JSON **з офіційних хостів**, `--compressed`): `constitution_254k.frame.html` 402 531 B (528 «Стаття», 995 `rvts`), `ck_435-15.frame.html` 2 788 405 B (4070 «Стаття»), `laws_list.json` 2 058 B | `pytest tests/test_s3_fixtures.py` → **4 passed** (статті, стабільні адреси `{nreg}/article/N`, `content_checksum`, JSON-каталог) |
+| 3.5 фікстури | Відновлено (2 HTML + 1 JSON **з офіційних хостів**, `--compressed`): `constitution_254k.frame.html` 402 531 B (528 «Стаття», 995 `rvts`), `ck_435-15.frame.html` 2 788 405 B (4070 «Стаття»), `laws_list.json` 2 058 B. У S4.3 перенесено в `tests/fixtures/` (як у тексті спринту) | `pytest tests/test_s3_fixtures.py` → **4 passed** (статті, стабільні адреси `{nreg}/article/N`, `content_checksum`, JSON-каталог) |
 | 3.5 стабільні адреси | Тест перевіряє ієрархію `act/article/N/part/M` (замість хибної вимоги префікса «Стаття» — фактичний формат `254к-96-вр/article/1`) | вище |
 | 3.5 `UNIQUE(document, content)` | Міграція `s3revcontent`: `UNIQUE(legal_document_id, source_hash)` у `document_revisions` (дублів до додавання — 0) + `UniqueConstraint` у моделі | `alembic upgrade head` → `s3revcontent`; `pg_constraint` → `uq_revision_doc_content` |
 | 3.7 «той самий текст → інша дата» | `record_warning()` в `import_stats` (лічильник + лог, не «тихе»), виклик в `upsert_revision`; тест очікує `warning_count() >= 1` | `pytest` → 30 passed |
@@ -242,10 +242,22 @@
 | `getSyncRuns(limit)` у `lib/api.ts` (звіт іде у фоні через `GET /sync/runs`, POST віддає лише старт) | використовується в адмінпанелі |
 | pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ 0 / ✅ 0 / ✅ **19 passed, 0 failed** |
 
+### S4.3 — Сцена в межах картки, перенос фікстур (08.11.2026) ✅ виконано
+
+| Правка | Доказ |
+|---|---|
+| Камера сцени: вертикальний FOV тепер **підлаштовується під формат картки** (`fitFov`, база 32°, стеля 72°, орієнтир — горизонт. поле широкого формату). У вузькій картці (aspect ≈0.44) горизонтальне поле зору було ~6° — місто майже не потрапляло в кадр («сцену не видно») | кліп-скриншоти `.hero-scene` при 970px (картка 204px) і 1440px (380px): місто заповнює картку в обох |
+| Текст оверлея міряється **шириною контейнера** (`container-type: inline-size` + `cqw`): заголовок/підзаголовок/підказка більше не вилазять за межі картки; у вузькій (<340px) `.iu-sub` і підказка ховаються | ті самі кліп-скриншоти: текст у межах картки |
+| Підказка внизу: прибрано `white-space: nowrap` + `left:50%` (налазила на кнопку «Світла») → `left:12px; right:112px` | кнопка «Світла» вільна |
+| Фікстури перенесено **як у тексті спринту**: `apps/api/tests/fixtures/` → `tests/fixtures/` (поруч з `test_s3_fixtures.py`); шлях у тесті оновлено | `pytest tests/test_s3_fixtures.py` → 4 passed |
+| Прибрано розвідувальні однофайлові спеки (`recipe.spec.ts`) та їхні скриншоти | `git status` — чисто |
+| pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
+
 **Відкриті конфлікти (потребують рішення замовника, правило 3):**
 1. `docs/PLAN.md` — спринт вимагає файл із таблицею S0–S8; правило 5 вимагає рівно 3 файли. **Не створено** — план відсутній в git-історії, S4+ ведуться тут.
 2. Окремий `docs/SOURCES_VERIFIED.md` (3.1) — замінено §16 у `PROJECT_FULL_REPORT.md`; відновлювати чи ні.
-3. `tests/fixtures/` — **відновлено** (3.5 закрито), але `tests/fixtures` ≠ `apps/api/tests/fixtures` — шлях у тесті зафіксовано як `apps/api/tests/fixtures`.
+3. ~~`tests/fixtures/`~~ — **закрито (S4.3)**: фікстури перенесено в `tests/fixtures/`, як у тексті спринту.
+4. Скриншоти e2e мають ~50% «привидність» — **артефакт headless-рендера** (метрика dx300 ≈31; він є і в HEAD-скриншотах до правок). Детерміновано не вилікується CSS/флагами (перевірено: `.blob`/`.noise`/фільтри/`CDPScreenshotNewSurface` — dx300 не змінюється). Прийнято як є; можливий варіант — headed-прогін за рішенням власника.
 
 ## 0. Останні зміни (01–02.11.2026)
 

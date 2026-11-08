@@ -258,6 +258,8 @@ export default function InteractiveScene({
         pointer-events: none;
         color: #f3e6bc;
         font-family: Inter, system-ui, sans-serif;
+        /* Текст оверлея міряємо шириною картки сцени, а не вікна */
+        container-type: inline-size;
       }
       #ai-ugoda-scene-canvas {
         position: absolute;
@@ -267,12 +269,12 @@ export default function InteractiveScene({
       }
       .iu-title {
         position: absolute;
-        left: clamp(16px, 3vw, 44px);
-        top: clamp(16px, 3vw, 36px);
-        max-width: min(430px, 70vw);
+        left: clamp(12px, 4cqw, 44px);
+        top: clamp(12px, 4cqw, 36px);
+        max-width: calc(100% - 28px);
       }
       .iu-title h1 {
-        font: 600 clamp(26px, 3.6vw, 48px) / 1.08 "Playfair Display", serif;
+        font: 600 clamp(22px, 9cqw, 48px) / 1.08 "Playfair Display", serif;
         color: #f3e6bc;
         margin: 0;
         text-shadow: 0 2px 24px rgba(232, 200, 113, 0.35);
@@ -285,7 +287,7 @@ export default function InteractiveScene({
       .iu-title .iu-place {
         color: #e8c871;
         margin: 8px 0 0;
-        font: italic 500 17px/1.4 "Source Serif 4", serif;
+        font: italic 500 clamp(13px, 4.2cqw, 17px)/1.4 "Source Serif 4", serif;
         letter-spacing: 0.04em;
         text-transform: none;
         text-shadow: 0 1px 14px rgba(232, 200, 113, 0.4);
@@ -293,9 +295,16 @@ export default function InteractiveScene({
       .iu-title .iu-sub {
         color: #b3a28a;
         margin-top: 8px;
-        font-size: 15px;
+        font-size: clamp(12px, 3.6cqw, 15px);
         max-width: 36ch;
         line-height: 1.55;
+      }
+      /* У вузькій картці довгий опис/підказка затуляють сцену — ховаємо */
+      @container (max-width: 340px) {
+        .iu-title .iu-sub,
+        .iu-hint {
+          display: none;
+        }
       }
       .iu-title p {
         margin-top: 8px;
@@ -304,18 +313,20 @@ export default function InteractiveScene({
       }
       .iu-hint {
         position: absolute;
-        left: 50%;
+        left: 12px;
+        /* не налазить на кнопку «Світла/Ніч» праворуч унизу */
+        right: 112px;
         bottom: calc(14px + env(safe-area-inset-bottom, 0));
-        transform: translateX(-50%);
-        font-size: 13px;
+        font-size: clamp(11px, 3.2cqw, 13px);
         color: rgba(179, 162, 138, 0.85);
-        white-space: nowrap;
-        padding: 8px 16px;
+        padding: 8px 14px;
         border-radius: 99px;
         background: rgba(15, 11, 8, 0.55);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         pointer-events: none;
+        text-align: center;
+        box-sizing: border-box;
       }
       .iu-card {
         position: absolute;
@@ -499,12 +510,24 @@ export default function InteractiveScene({
 
     const C = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1.5, 90);
 
+    // У вузькій картці вертикальний FOV 32° дає крихітне горизонтальне поле —
+    // сцену майже не видно. Тримаємо горизонтальне поле зору близьким до широкого.
+    const fitFov = (aspect: number) => {
+      const BASE = 32;
+      const REF = 1.6; // орієнтовно широкий формат картки
+      if (aspect >= REF || aspect <= 0.05) return BASE;
+      const halfH = Math.tan((BASE * Math.PI) / 360) * REF; // тангенс половини горизонт. кута
+      const halfV = Math.atan(halfH / Math.max(aspect, 0.3));
+      return Math.min(72, (halfV * 360) / Math.PI);
+    };
+
     // Розмір сцени = розмір картки (не весь вікно) — S3: сцена в межах hero.
     const setSize = () => {
       const el = containerRef.current;
       const w = el?.clientWidth || window.innerWidth;
       const h = el?.clientHeight || window.innerHeight;
       C.aspect = w / h;
+      C.fov = fitFov(C.aspect);
       C.updateProjectionMatrix();
       R.setSize(w, h);
     };
@@ -1309,6 +1332,7 @@ export default function InteractiveScene({
       const w = el?.clientWidth || window.innerWidth;
       const h = el?.clientHeight || window.innerHeight;
       C.aspect = w / h;
+      C.fov = fitFov(C.aspect);
       C.updateProjectionMatrix();
       R.setSize(w, h);
     };

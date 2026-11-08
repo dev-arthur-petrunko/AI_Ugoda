@@ -5,6 +5,8 @@
 - ck_435-15.frame.html          <- zakon.rada.gov.ua/laws/show/435-15.frame (2 788 405 B)
 - laws_list.json               <- data.rada.gov.ua/ogd/zak/laws/list.json (2 058 B)
 
+Шлях: tests/fixtures/ (поруч з тестом).
+
 Перевіряємо: кількість статей і стабільні адреси (Стаття N) у справжньому HTML.
 """
 from __future__ import annotations
@@ -15,7 +17,7 @@ from pathlib import Path
 
 from app.services.parser import ZakonRadaParser
 
-FIXTURES = Path(__file__).resolve().parent.parent / "apps" / "api" / "tests" / "fixtures"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def _read(name: str) -> str:
