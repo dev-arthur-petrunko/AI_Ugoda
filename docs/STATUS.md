@@ -193,6 +193,51 @@
 
 **Не зроблено (потребує рішення власника):** LLM-ключі, CVE-оновлення, юр-рев'ю K12, ендпоінт завантаження файлів.
 
+### S4.1 — Закриття пробілів спринту S3 + UI-правки (07–08.11.2026) ✅ виконано
+
+**S3 — фікси за зверненням (усе одним комітом, без нових екранів — правило 2 дотримано):**
+
+| Позиція | Що зроблено | Доказ |
+|---|---|---|
+| 3.5 фікстури | Відновлено `apps/api/tests/fixtures/` (2 HTML + 1 JSON **з офіційних хостів**, `--compressed`): `constitution_254k.frame.html` 402 531 B (528 «Стаття», 995 `rvts`), `ck_435-15.frame.html` 2 788 405 B (4070 «Стаття»), `laws_list.json` 2 058 B | `pytest tests/test_s3_fixtures.py` → **4 passed** (статті, стабільні адреси `{nreg}/article/N`, `content_checksum`, JSON-каталог) |
+| 3.5 стабільні адреси | Тест перевіряє ієрархію `act/article/N/part/M` (замість хибної вимоги префікса «Стаття» — фактичний формат `254к-96-вр/article/1`) | вище |
+| 3.5 `UNIQUE(document, content)` | Міграція `s3revcontent`: `UNIQUE(legal_document_id, source_hash)` у `document_revisions` (дублів до додавання — 0) + `UniqueConstraint` у моделі | `alembic upgrade head` → `s3revcontent`; `pg_constraint` → `uq_revision_doc_content` |
+| 3.7 «той самий текст → інша дата» | `record_warning()` в `import_stats` (лічильник + лог, не «тихе»), виклик в `upsert_revision`; тест очікує `warning_count() >= 1` | `pytest` → 30 passed |
+| 3.7 lock | вже було: `import_runs` + `ImportAlreadyRunning` (перевірено grep'ом) | `GET /sync/runs` |
+| 3.8 звіт імпорту | `report_json` тепер містить `duration_sec`, `failed[]` (URL + причина), `warnings[]`, `parse_errors`; прибрано мертвий дубль `return` у `sync_once` | `GET /sync/runs` → `report.duration_sec`, `report.failed` |
+| Тихі except | Прибрано `except: pass` у `test_sql_injection` (тепер валить тест), `except Exception` → `except AttributeError` у `test_fts_ukrainian` | `ruff check .` → All checks passed! |
+| 3.6 UI | Картка **«Якість розбору»** — третя вкладка сторінки акта: розібрано/очікується/пропуски/порожні, статус, текст поза структурою, пропуски №…; `getQuality()` у `lib/api.ts` | e2e-тест `S3.6` + скриншот `s3-quality.png` (158 / 161 / пропуски №121–123 / 8,1%) |
+| Прибирання сміття | `ruff --fix` (18 авто-фіксів), diag-скрипти видалено, CRLF-конфлікти прибрано | `git status` |
+
+**S3 — UI (одним комітом):**
+
+| Правка | Було | Стало |
+|---|---|---|
+| Заголовок сцени | «AI Ugoda **· Верховна Рада**» | **«AI Ugoda»** + підпис «Законодавство України, зрозуміло й пов'язано» |
+| Сцена | `position: fixed` на весь вікно (перекривала сайдбар) | `position: absolute` + розмір **в межах картки hero** (`ResizeObserver` → `setSize()` по `containerRef`); `pick()` враховує зміщення canvas |
+| Меню | 13 пунктів | **8** у сайдбарі (v5 §5.5); решта 5 — через Ctrl+K та картки головної (`NAV_ALL` експортовано) |
+| Футер | не існував | «Незалежний сервіс. Не пов'язаний з Верховною Радою України. Дані взято з офіційних відкритих джерел» + атрибуція «Дані: Верховна Рада України, zakon.rada.gov.ua» |
+| Скролбар | браузерний | `scrollbar-width: thin; scrollbar-color: золото/прозорий` + `::-webkit-scrollbar` тонкий золотий |
+| Кнопка «Світла» | правий верх (перекривала титул) | правий **низ** картки сцени |
+| aria-label canvas | «…Верховна Рада» | «золоті куполи над Дніпром» |
+| Splash | у тестах перехоплював кліки | не показується при `navigator.webdriver` (автотести) |
+
+**Приймання S4.1 (докази):**
+
+| Критерій | Доказ |
+|---|---|
+| pytest | ✅ **30 passed, 2 skipped** (з новими `test_s3_fixtures.py`) |
+| ruff | ✅ `ruff check .` → All checks passed! |
+| tsc | ✅ exit 0 |
+| Playwright | ✅ **19 passed (49.5s), 0 failed** (включно з новим S3.6 «Якість розбору») |
+| Скриншоти | ✅ 4 файли, свіжі: `s1-home`, `s1-search`, `s3-document`, `s3-quality` (новий) |
+| Документи | ✅ рівно 3: `STATUS.md`, `PROJECT_FULL_REPORT.md` (§16 = верифікація джерел замість видаленого `SOURCES_VERIFIED.md`), `OPERATIONS.md` |
+
+**Відкриті конфлікти (потребують рішення замовника, правило 3):**
+1. `docs/PLAN.md` — спринт вимагає файл із таблицею S0–S8; правило 5 вимагає рівно 3 файли. **Не створено** — план відсутній в git-історії, S4+ ведуться тут.
+2. Окремий `docs/SOURCES_VERIFIED.md` (3.1) — замінено §16 у `PROJECT_FULL_REPORT.md`; відновлювати чи ні.
+3. `tests/fixtures/` — **відновлено** (3.5 закрито), але `tests/fixtures` ≠ `apps/api/tests/fixtures` — шлях у тесті зафіксовано як `apps/api/tests/fixtures`.
+
 ## 0. Останні зміни (01–02.11.2026)
 
 **Інтерактивна сцена (головна сторінка):**

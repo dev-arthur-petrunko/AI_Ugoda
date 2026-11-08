@@ -172,8 +172,8 @@ export default function InteractiveScene({
       if (!camera || !scene || !canvas) return -1;
       const rect = canvas.getBoundingClientRect();
       const ms = new THREE.Vector2(
-        (x / rect.width) * 2 - 1,
-        -(y / rect.height) * 2 + 1,
+        ((x - rect.left) / rect.width) * 2 - 1,
+        -((y - rect.top) / rect.height) * 2 + 1,
       );
       const ray = new THREE.Raycaster();
       ray.setFromCamera(ms, camera);
@@ -252,7 +252,7 @@ export default function InteractiveScene({
     style.id = "ai-ugoda-interactive-scene-css";
     style.textContent = `
       #ai-ugoda-scene-ui {
-        position: fixed;
+        position: absolute;
         inset: 0;
         z-index: 20;
         pointer-events: none;
@@ -260,12 +260,13 @@ export default function InteractiveScene({
         font-family: Inter, system-ui, sans-serif;
       }
       #ai-ugoda-scene-canvas {
-        position: fixed;
+        position: absolute;
         inset: 0;
         z-index: 10;
         display: block;
       }
       .iu-title {
+        position: absolute;
         left: clamp(16px, 3vw, 44px);
         top: clamp(16px, 3vw, 36px);
         max-width: min(430px, 70vw);
@@ -302,6 +303,7 @@ export default function InteractiveScene({
         margin: 0;
       }
       .iu-hint {
+        position: absolute;
         left: 50%;
         bottom: calc(14px + env(safe-area-inset-bottom, 0));
         transform: translateX(-50%);
@@ -316,7 +318,7 @@ export default function InteractiveScene({
         pointer-events: none;
       }
       .iu-card {
-        position: fixed;
+        position: absolute;
         right: clamp(12px, 3vw, 40px);
         top: 50%;
         width: min(350px, calc(100% - 24px));
@@ -415,9 +417,9 @@ export default function InteractiveScene({
         white-space: nowrap;
       }
       .iu-night-btn {
-        position: fixed;
-        right: clamp(12px, 3vw, 40px);
-        top: clamp(12px, 3vw, 34px);
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
         z-index: 30;
         pointer-events: auto;
         background: rgba(15, 11, 8, 0.55);
@@ -434,7 +436,7 @@ export default function InteractiveScene({
         background: rgba(201, 162, 75, 0.2);
       }
       .iu-err {
-        position: fixed;
+        position: absolute;
         inset: 0;
         display: none;
         place-items: center;
@@ -445,7 +447,7 @@ export default function InteractiveScene({
         background: #0c0a0b;
       }
       .iu-vg {
-        position: fixed;
+        position: absolute;
         inset: 0;
         pointer-events: none;
         z-index: 15;
@@ -465,7 +467,7 @@ export default function InteractiveScene({
         }
         .iu-night-btn {
           top: auto;
-          bottom: 120px;
+          bottom: 16px;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -488,7 +490,6 @@ export default function InteractiveScene({
 
     const R = new THREE.WebGLRenderer({ canvas, antialias: true });
     R.setPixelRatio(Math.min(window.devicePixelRatio, window.innerWidth < 800 ? 1.5 : 2));
-    R.setSize(window.innerWidth, window.innerHeight);
     R.shadowMap.enabled = true;
     R.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -497,6 +498,17 @@ export default function InteractiveScene({
     S.fog = new THREE.Fog(0x0b0b14, 24, 60);
 
     const C = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1.5, 90);
+
+    // Розмір сцени = розмір картки (не весь вікно) — S3: сцена в межах hero.
+    const setSize = () => {
+      const el = containerRef.current;
+      const w = el?.clientWidth || window.innerWidth;
+      const h = el?.clientHeight || window.innerHeight;
+      C.aspect = w / h;
+      C.updateProjectionMatrix();
+      R.setSize(w, h);
+    };
+    setSize();
 
     const hemi = new THREE.HemisphereLight(0x6a7aa8, 0x3a2a1c, 0.8);
     S.add(hemi);
@@ -1291,15 +1303,20 @@ export default function InteractiveScene({
       const R = rendererRef.current;
       const canvas = canvasRef.current;
       if (!C || !R || !canvas) return;
-      C.aspect = window.innerWidth / window.innerHeight;
+      const el = containerRef.current;
+      const w = el?.clientWidth || window.innerWidth;
+      const h = el?.clientHeight || window.innerHeight;
+      C.aspect = w / h;
       C.updateProjectionMatrix();
-      R.setSize(window.innerWidth, window.innerHeight);
+      R.setSize(w, h);
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
+    const ro = new ResizeObserver(onResize);
+    if (containerRef.current) ro.observe(containerRef.current);
     window.addEventListener("resize", onResize);
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") backFromHotspot();
@@ -1318,6 +1335,7 @@ export default function InteractiveScene({
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("resize", onResize);
+      ro.disconnect();
       window.removeEventListener("keydown", (e) => {
         if (e.key === "Escape") backFromHotspot();
       });
@@ -1328,10 +1346,8 @@ export default function InteractiveScene({
   return (
     <div ref={containerRef} className={`relative ${className}`} style={{ height, width: "100%", background: "#0c0a0b" }}>      <div id="ai-ugoda-scene-ui" aria-hidden="true">
         <div className="iu-title">
-          <h1>
-            AI Ugoda <span className="iu-title-sep">·</span> Верховна Рада
-          </h1>
-          <p className="iu-place">Київ. Площа Конституції</p>
+          <h1>AI Ugoda</h1>
+          <p className="iu-place">Законодавство України, зрозуміло й пов'язано</p>
           <p className="iu-sub">
             Золоті куполи над Дніпром — і кожен камінь площі веде до розділу законодавства. Оберіть, куди йти.
           </p>
@@ -1343,7 +1359,7 @@ export default function InteractiveScene({
         <div id="iu-tip" className="iu-tip" />
       </div>
       <div className="iu-vg" aria-hidden="true" />
-      <canvas id="ai-ugoda-scene-canvas" ref={canvasRef} aria-label="Інтерактивна 3D-сценка: AI Ugoda, Київ, площа Конституції, Верховна Рада" />
+      <canvas id="ai-ugoda-scene-canvas" ref={canvasRef} aria-label="Інтерактивна 3D-сцена AI Ugoda: золоті куполи над Дніпром" />
       <div id="ai-ugoda-scene-err" className="iu-err" aria-live="polite">
         Не вдалося запустити 3D (потрібен WebGL і доступ до three.js).
       </div>

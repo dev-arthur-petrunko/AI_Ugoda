@@ -32,3 +32,30 @@ def parse_error_count() -> int:
 def reset_parse_errors() -> None:
     with _lock:
         _parse_errors.clear()
+
+
+_warnings: list[dict] = []
+
+
+def record_warning(message: str, *, source_url: str | None = None, document_id: str | None = None) -> int:
+    """S3.7: попередження (напр. той самий текст під іншою датою) — лічиться й логиться, не «тихе»."""
+    with _lock:
+        _warnings.append(
+            {"message": message, "source_url": source_url, "document_id": document_id}
+        )
+        return len(_warnings)
+
+
+def warnings() -> list[dict]:
+    with _lock:
+        return list(_warnings)
+
+
+def warning_count() -> int:
+    with _lock:
+        return len(_warnings)
+
+
+def reset_warnings() -> None:
+    with _lock:
+        _warnings.clear()

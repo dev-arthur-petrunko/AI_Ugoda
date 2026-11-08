@@ -6,37 +6,36 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "apps" / "api"))
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.models.base import Base
-from app.services.import_service import ImportService
 
 # Імпортуємо всі моделі, щоб вони зареєструвалися в Base.metadata
 from app.models import (  # noqa: F401
-    LegalDocument,
-    DocumentRevision,
-    LegalProvision,
-    LegalEvent,
-    LegalReference,
-    LegalLink,
-    LegalForceLevel,
     AIAnalysis,
-    ConflictCandidate,
-    User,
-    UserMonitoringRule,
-    UserBookmark,
-    ContractDocument,
-    ContractAnalysis,
     AuditLog,
+    ConflictCandidate,
+    ContractAnalysis,
+    ContractDocument,
+    DocumentRevision,
+    LegalDocument,
+    LegalEvent,
+    LegalForceLevel,
+    LegalLink,
+    LegalProvision,
+    LegalReference,
+    User,
+    UserBookmark,
+    UserMonitoringRule,
 )
+from app.models.base import Base
+from app.services.import_service import ImportService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 
 @pytest.fixture(scope="function")

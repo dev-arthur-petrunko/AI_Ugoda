@@ -3,13 +3,9 @@
 """
 from __future__ import annotations
 
-import uuid
 from datetime import date
 
-from app.models.legal_document import LegalDocument
 from app.models.legal_link import LegalLink
-from app.models.legal_provision import LegalProvision
-from app.models.document_revision import DocumentRevision
 from app.services.conflict_engine import ConflictEngine
 
 

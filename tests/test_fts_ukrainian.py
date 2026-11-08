@@ -6,18 +6,17 @@ Run against a real PostgreSQL instance with Hunspell dictionaries installed
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import text
-
-from app.services.search import SearchService
-from app.models.legal_document import LegalDocument
 from app.models.document_revision import DocumentRevision
+from app.models.legal_document import LegalDocument
 from app.models.legal_provision import LegalProvision
+from app.services.search import SearchService
+from sqlalchemy import text
 
 
 def _is_postgres(db) -> bool:
     try:
         return db.get_bind().dialect.name == "postgresql"
-    except Exception:
+    except AttributeError:  # dialect not initialised yet — not Postgres
         return False
 
 

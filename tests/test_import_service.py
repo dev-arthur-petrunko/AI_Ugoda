@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.models.legal_document import LegalDocument
 from app.models.legal_force_level import LegalForceLevel
 
 

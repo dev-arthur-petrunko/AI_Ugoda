@@ -336,6 +336,7 @@ async def sync_once():
     import_service.init_force_levels()
 
     stats = {"discovered": 0, "added": 0, "updated": 0, "skipped": 0, "errors": 0}
+    failed: list[dict] = []
     reset_parse_errors()
     connector = ZakonRadaConnector()
     try:
@@ -357,8 +358,10 @@ async def sync_once():
                         stats["added"] += 1
                 else:
                     stats["errors"] += 1
-            except Exception:
+                    failed.append({"url": url, "reason": "порожній або нечитабельний відповідь (розібрано 0)"})
+            except Exception as exc:
                 stats["errors"] += 1
+                failed.append({"url": url, "reason": f"{type(exc).__name__}: {exc}"})
                 import logging
                 logging.getLogger("aiugoda.import").exception("Помилка імпорту %s", url)
                 # S3: сесія після збої flush має бути відкочена, інакше
@@ -382,21 +385,28 @@ async def sync_once():
             fresh.updated = stats["updated"]
             fresh.skipped = stats["skipped"]
             fresh.errors = stats["errors"] + parse_error_count()
-            fresh.report_json = {**stats, "parse_errors": parse_error_count()}
+            from app.services.import_stats import warnings as collect_warnings
+
+            fresh.report_json = {
+                **stats,
+                "parse_errors": parse_error_count(),
+                "duration_sec": round((datetime.now(UTC) - started).total_seconds(), 1),
+                "failed": failed,
+                "warnings": collect_warnings(),
+            }
             db.commit()
         db.close()
         _import_lock = False
         del _dt
 
-    return {
-        "source": "zakon.rada.gov.ua",
-        "stats": stats,
-        "parse_errors": parse_error_count(),
-        "note": "Імпорт 13 актів Tier 1 (nreg звірені з doc.txt 05.11.2026)",
-    }
+    from app.services.import_stats import warnings as collected_warnings
 
     return {
         "source": "zakon.rada.gov.ua",
         "stats": stats,
-        "note": "Р†РјРїРѕСЂС‚ 5 С‚РµСЃС‚РѕРІРёС… Р°РєС‚С–РІ С‡РµСЂРµР· HTML-РїР°СЂСЃРёРЅРі",
+        "parse_errors": parse_error_count(),
+        "duration_sec": round((datetime.now(UTC) - started).total_seconds(), 1),
+        "failed": failed,
+        "warnings": collected_warnings(),
+        "note": "Імпорт 13 актів Tier 1 (nreg звірені з doc.txt 05.11.2026)",
     }

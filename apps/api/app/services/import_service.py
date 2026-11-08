@@ -203,6 +203,23 @@ class ImportService:
                 )
                 .first()
             )
+        # S3.7: той самий текст під іншою датою → нова редакція НЕ створюється,
+        # лише попередження (не «тихе»: лічиться та логиться).
+        if (
+            row is not None
+            and normalized_text
+            and row.source_hash == _checksum(normalized_text)
+            and effective_from is not None
+            and row.effective_from != effective_from
+        ):
+            from app.services.import_stats import record_warning
+
+            record_warning(
+                "Той самий текст (SHA-256 збігається) запропоновано з іншою датою "
+                f"({row.effective_from} -> {effective_from}): нову редакцію не створено",
+                source_url=source_url,
+                document_id=str(document.id),
+            )
         if row:
             row.revision_label = revision_label
             row.revision_date = revision_date

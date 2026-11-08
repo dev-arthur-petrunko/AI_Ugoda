@@ -97,15 +97,19 @@ def test_same_text_different_date_no_new_revision(svc) -> None:
         revisions_after == revisions_before
     ), f"нова редакція не має створюватись: було {revisions_before}, стало {revisions_after}"
 
+    # S3.7: лише попередження — воно має бути зараховане (не «тихе»).
+    from app.services.import_stats import warning_count
+
+    assert warning_count() >= 1, "попередження про той самий текст під іншою датою має бути зараховане"
+
 
 def test_import_lock_rejects_second_run() -> None:
     """S3.7: два імпорти одночасно → другий відхиляється (блокування)."""
     import asyncio
 
-    from app.services.connector import ImportAlreadyRunning, import_locked
-
     # Симуляція: перший запуск утримує блокування
     import app.services.connector as conn
+    from app.services.connector import ImportAlreadyRunning, import_locked
 
     conn._import_lock = True
     try:

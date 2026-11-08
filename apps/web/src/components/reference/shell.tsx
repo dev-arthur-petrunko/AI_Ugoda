@@ -9,7 +9,6 @@ const NAV = [
   ["overview", "Огляд", "/uk"],
   ["search", "Пошук законодавства", "/uk/legislation"],
   ["news", "Нові закони та зміни", "/uk/changes"],
-  ["contracts", "Аналіз договорів", "/uk/contracts"],
   ["ask", "AI Юрист-дослідник", "/uk/assistant"],
   ["conflicts", "Протиріччя та колізії", "/uk/conflicts"],
   ["map", "Карта законодавства", "/uk/legal-map"],
@@ -17,9 +16,16 @@ const NAV = [
   ["docs", "Мої документи", "/uk/workspace"],
   ["bookmarks", "Закладки", "/uk/bookmarks"],
   ["reports", "Звіти", "/uk/reports"],
+  ["contracts", "Аналіз договорів", "/uk/contracts"],
   ["settings", "Налаштування", "/uk/settings"],
   ["admin", "Панель адміністратора", "/uk/admin"],
 ];
+
+// S3 (v5 §5.5): сайдбар — рівно 8 пунктів; решта (bookmarks, reports, contracts,
+// settings, admin) лишаються у NAV: доступні через Ctrl+K пошук і швидкі дії
+// на головній. NAV_PERSONAL/NAV_ADMIN не прибираємо зі сторінок — лише з меню.
+const NAV_MAIN = NAV.slice(0, 8);
+export const NAV_ALL = NAV;
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -96,22 +102,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <div id="nav">
             <div className="grp">Розділи</div>
-            {NAV.map(([id, label, href], i) => (
-              <span key={id}>
-                {i === NAV.length - 1 && <div className="grp">Адміністрування</div>}
-                <button
-                  className="nav"
-                  data-go={id}
-                  aria-current={activeId === id ? "page" : "false"}
-                  onClick={() => {
-                    router.push(href);
-                    setSideOpen(false);
-                  }}
-                >
-                  <span className="dot" />
-                  {label}
-                </button>
-              </span>
+            {NAV_MAIN.map(([id, label, href]) => (
+              <button
+                key={id}
+                className="nav"
+                data-go={id}
+                aria-current={activeId === id ? "page" : "false"}
+                onClick={() => {
+                  router.push(href);
+                  setSideOpen(false);
+                }}
+              >
+                <span className="dot" />
+                {label}
+              </button>
             ))}
           </div>
         </aside>
@@ -132,6 +136,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </header>
           <section className="view" tabIndex={-1}>
             {children}
+            <footer className="site-footer" role="contentinfo">
+              <p className="disclaimer">
+                Незалежний сервіс. Не пов'язаний з Верховною Радою України. Дані взято з офіційних
+                відкритих джерел.
+              </p>
+              <p className="attribution">Дані: Верховна Рада України, zakon.rada.gov.ua</p>
+            </footer>
           </section>
         </div>
       </div>

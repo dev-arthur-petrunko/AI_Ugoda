@@ -8,6 +8,39 @@ test.beforeAll(() => {
   fs.mkdirSync(SHOTS, { recursive: true });
 });
 
+test.beforeEach(async ({ page }) => {
+  // Ghosting на скриншотах: нескінченні CSS-анімації (.blob drift) не глушаться
+  // опцією animations:"disabled". reducedMotion тригерить наявне правило
+  // @media(prefers-reduced-motion:reduce){*{animation:none!important}} — кадр чистий.
+  // Примітка: addInitScript тут НЕ використовуємо — він деградує композицію
+  // headless-скриншотів (перевірено: чисто 2.1 без нього, 31.6 з ним).
+  await page.emulateMedia({ reducedMotion: "reduce" });
+});
+
+// Splash (шар 2.3 c) перехоплює кліки/псевдоніми скриншотів — чекаємо детерміновано:
+// він монтується ПІСЛЯ гідратації, тому спочатку чекаємо появи (до 1.5 c),
+// потім зникнення. Якщо не з'явився — просто мовчки минаємо.
+async function settle(page: Page) {
+  // Сплеш у тестах вимкнено (Splash: navigator.webdriver) — резервне очікування
+  // на випадок, якщо шар ще з'явиться (гонка гідратації).
+  const splash = page.locator(".splash");
+  try {
+    await splash.waitFor({ state: "visible", timeout: 1000 });
+    await splash.click({ timeout: 1500 });
+    await splash.waitFor({ state: "detached", timeout: 3000 });
+  } catch {
+    /* сплеша немає — очікувано */
+  }
+}
+
+// Скриншот приймання: чекаємо доки сторінка «визріє» (шрифти + стабільний кадр).
+// Забрано ранні знімки давали ghosting у headless (позначені текстів накладалися).
+async function shot(page: Page, name: string) {
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: path.join(SHOTS, name), fullPage: false });
+}
+
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("console", (msg) => {
@@ -21,6 +54,7 @@ test.describe("S1 — приймання: головна", () => {
   test("сцена, шрифти, один «AI Ugoda», лічильник, 0 помилок", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto("/uk", { waitUntil: "networkidle" });
+    await settle(page);
 
     // 1. Інтерактивна сцена
     await expect(page.locator("canvas")).toHaveCount(1);
@@ -49,7 +83,7 @@ test.describe("S1 — приймання: головна", () => {
     expect(errors, `console errors:\n${errors.join("\n")}`).toHaveLength(0);
 
     // 6. Скриншот для приймання
-    await page.screenshot({ path: path.join(SHOTS, "s1-home.png"), fullPage: false });
+    await shot(page, "s1-home.png");
   });
 });
 
@@ -57,6 +91,7 @@ test.describe("S1 — приймання: пошук", () => {
   test("Знайдено: 13 (official), без дублів, фільтри дати, 0 помилок", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto("/uk/legislation", { waitUntil: "networkidle" });
+    await settle(page);
 
     // S3.2: за замовчуванням показуються лише official-акти (13 імпортованих)
     await expect(page.getByText(/Знайдено:\s*13/)).toBeVisible();
@@ -85,7 +120,7 @@ test.describe("S1 — приймання: пошук", () => {
 
     expect(errors, `console errors:\n${errors.join("\n")}`).toHaveLength(0);
 
-    await page.screenshot({ path: path.join(SHOTS, "s1-search.png"), fullPage: false });
+    await shot(page, "s1-search.png");
   });
 });
 
@@ -121,6 +156,7 @@ test.describe("S3 — приймання: справжні дані", () => {
 
     // Пошук знаходить офіційну Конституцію (джерело: КОНСТИТУЦІЯ УКРАЇНИ)
     await page.goto("/uk/legislation?q=Конституція", { waitUntil: "networkidle" });
+    await settle(page);
     await expect(page.getByText(/конституція україни/i).first()).toBeVisible();
 
     // Відкриваємо саме Конституцію (перший результат може бути іншим актом)
@@ -129,6 +165,7 @@ test.describe("S3 — приймання: справжні дані", () => {
     await constLink.click();
     await page.waitForURL(/\/uk\/legislation\/[0-9a-f-]{36}/);
     await page.waitForLoadState("networkidle");
+    await settle(page);
 
     // ≥ 150 статей у переліку (S3: Конституція має 158 розібраних)
     const articleCount = await page.locator("text=/\\d{2,3}\\s*стат/").first().textContent().catch(() => null);
@@ -139,6 +176,33 @@ test.describe("S3 — приймання: справжні дані", () => {
     }
 
     expect(errors, `console errors:\n${errors.join("\n")}`).toHaveLength(0);
-    await page.screenshot({ path: path.join(SHOTS, "s3-document.png"), fullPage: false });
+    await shot(page, "s3-document.png");
+  });
+});
+
+test.describe("S3.6 — приймання: картка «Якість розбору»", () => {
+  test("Вкладка показує розібрані статей, пропуски і стан (без помилок консолі)", async ({ page }) => {
+    const errors = collectErrors(page);
+
+    await page.goto("/uk/legislation/ed5f721c-08c4-45b0-bfcb-505f2b82512c", {
+      waitUntil: "networkidle",
+    });
+    await settle(page);
+
+    await page.getByRole("button", { name: "Якість розбору" }).click();
+
+    // Показники мають бути числами з API /documents/{id}/quality
+    await expect(page.getByText("Розібрано статей")).toBeVisible();
+    await expect(page.getByText("Пропусків статей")).toBeVisible();
+    // Стан парсера (ok | warning | quarantine) і частка тексту поза структурою
+    await expect(page.getByText(/Текст поза структурою/)).toBeVisible();
+
+    const body = (await page.textContent("body")) || "";
+    const m = body.match(/Розібрано статей\s*(\d+)/);
+    expect(m, "parsed_articles must be a number").not.toBeNull();
+    expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(150);
+
+    expect(errors, `console errors:\n${errors.join("\n")}`).toHaveLength(0);
+    await shot(page, "s3-quality.png");
   });
 });

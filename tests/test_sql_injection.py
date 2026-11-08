@@ -24,14 +24,10 @@ def test_search_sql_injection(svc) -> None:
     ]
 
     for q in malicious_queries:
-        try:
-            results = search_service.search(q, limit=5)
-            # Тест пройдено, якщо не виникло помилки і не повернуто всі записи
-            assert isinstance(results, list)
-            # Якщо результат порожній або містить лише безпечні записи — тест пройдено
-        except Exception:
-            # Якщо пошук відхиляє небезпечні запити — тест теж пройдено
-            pass
+        # Захист від ін'єкції: запит НЕ має кидати виняток і НЕ має змінювати дані.
+        # Якщо щось кинулося — тест ПАДАЄ (тихих except немає, правило S3).
+        results = search_service.search(q, limit=5)
+        assert isinstance(results, tuple) and isinstance(results[0], list)
 
     # Нормальний пошук має працювати (повертає кортеж (results, count))
     search_results = search_service.search("конституція", limit=5)

@@ -9,22 +9,32 @@ import time
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_load.db"
 
+from app.core.database import get_db
+from app.main import app
+from app.models.base import Base
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from app.core.database import get_db
-from app.models.base import Base
-from app.main import app
 
 _test_engine = create_engine("sqlite:///./test_load.db", connect_args={"check_same_thread": False})
 _TestSession = sessionmaker(autocommit=False, autoflush=False, bind=_test_engine)
 
 from app.models import (  # noqa: F401
-    LegalDocument, DocumentRevision, LegalProvision, LegalEvent,
-    LegalReference, LegalLink, LegalForceLevel, AIAnalysis,
-    ConflictCandidate, User, UserMonitoringRule, UserBookmark,
-    ContractDocument, ContractAnalysis, AuditLog,
+    AIAnalysis,
+    AuditLog,
+    ConflictCandidate,
+    ContractAnalysis,
+    ContractDocument,
+    DocumentRevision,
+    LegalDocument,
+    LegalEvent,
+    LegalForceLevel,
+    LegalLink,
+    LegalProvision,
+    LegalReference,
+    User,
+    UserBookmark,
+    UserMonitoringRule,
 )
 
 Base.metadata.create_all(bind=_test_engine)

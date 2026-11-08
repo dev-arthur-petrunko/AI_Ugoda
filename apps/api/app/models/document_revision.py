@@ -16,6 +16,8 @@ class DocumentRevision(Base, TimestampMixin, UUIDMixin):
     __tablename__ = "document_revisions"
     __table_args__ = (
         UniqueConstraint("legal_document_id", "effective_from", name="uq_revision_doc_effective"),
+        # S3.5: один вміст (SHA-256 нормалізованого тексту) = одна редакція документа
+        UniqueConstraint("legal_document_id", "source_hash", name="uq_revision_doc_content"),
     )
 
     legal_document_id: Mapped[uuid.UUID] = mapped_column(

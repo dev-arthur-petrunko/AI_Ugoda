@@ -6,6 +6,9 @@ export function Splash() {
   const [show, setShow] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Автотести (Playwright): сплеш не показуємо — він накладається на
+    // скриншоти приймання і перехоплює кліки (navigator.webdriver = true).
+    if (navigator.webdriver) return;
     if (sessionStorage.getItem("ugoda-splash")) return;
     sessionStorage.setItem("ugoda-splash", "1");
     setShow(true);

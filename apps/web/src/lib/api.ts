@@ -126,6 +126,10 @@ export async function getAnalysis(id: string) {
   return request<any>(`/api/v1/documents/${id}/analysis`);
 }
 
+export async function getQuality(id: string) {
+  return request<any>(`/api/v1/documents/${id}/quality`);
+}
+
 // Bookmarks
 export async function listBookmarks(limit = 50, offset = 0) {
   return request<{ total: number; limit: number; offset: number; items: any[] }>(`/api/v1/bookmarks?limit=${limit}&offset=${offset}`);

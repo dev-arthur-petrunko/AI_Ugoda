@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText } from "lucide-react";
-import { getDocument, getProvisions, getRevisions, getAnalysis } from "@/lib/api";
+import { getDocument, getProvisions, getRevisions, getAnalysis, getQuality } from "@/lib/api";
 
 export default function LegislationDetailPage() {
   const params = useParams<{ documentId: string }>();
@@ -14,9 +14,11 @@ export default function LegislationDetailPage() {
   const [provs, setProvs] = useState<any[]>([]);
   const [revs, setRevs] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<any>(null);
+  const [quality, setQuality] = useState<any>(null);
+  const [qualityErr, setQualityErr] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"text" | "analysis">("text");
+  const [tab, setTab] = useState<"text" | "analysis" | "quality">("text");
 
   useEffect(() => {
     if (!id) return;
@@ -34,6 +36,9 @@ export default function LegislationDetailPage() {
       } finally {
         if (alive) setLoading(false);
       }
+      getQuality(id)
+        .then((qq) => { if (alive) { setQuality(qq); setQualityErr(false); } })
+        .catch(() => { if (alive) setQualityErr(true); });
     })();
     return () => { alive = false; };
   }, [id]);
@@ -61,6 +66,12 @@ export default function LegislationDetailPage() {
           className={`px-4 py-2 text-sm font-medium transition-colors ${tab === "analysis" ? "text-gold border-b-2 border-gold" : "text-text-secondary hover:text-text"}`}
         >
           Аналіз
+        </button>
+        <button
+          onClick={() => setTab("quality")}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${tab === "quality" ? "text-gold border-b-2 border-gold" : "text-text-secondary hover:text-text"}`}
+        >
+          Якість розбору
         </button>
       </div>
       {tab === "text" && (
@@ -131,6 +142,48 @@ export default function LegislationDetailPage() {
               </ul>
             </div>
           </div>
+        </div>
+      )}
+      {tab === "quality" && (
+        <div className="glass card">
+          <h2 className="text-lg font-semibold text-text mb-2">Якість розбору</h2>
+          {qualityErr && <p className="text-sm text-text-secondary">Не вдалося отримати показники якості.</p>}
+          {!qualityErr && !quality && <p className="text-sm text-text-secondary">Завантаження…</p>}
+          {quality && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-md border border-gold/10 bg-elevated p-3">
+                  <div className="text-xs text-text-secondary">Розібрано статей</div>
+                  <div className="text-2xl font-bold text-gold">{quality.parsed_articles}</div>
+                </div>
+                <div className="rounded-md border border-gold/10 bg-elevated p-3">
+                  <div className="text-xs text-text-secondary">Очікується (макс. №)</div>
+                  <div className="text-2xl font-bold text-gold">{quality.expected_articles}</div>
+                </div>
+                <div className="rounded-md border border-gold/10 bg-elevated p-3">
+                  <div className="text-xs text-text-secondary">Пропусків статей</div>
+                  <div className="text-2xl font-bold text-gold">{quality.gaps_count}</div>
+                </div>
+                <div className="rounded-md border border-gold/10 bg-elevated p-3">
+                  <div className="text-xs text-text-secondary">Порожніх статей</div>
+                  <div className="text-2xl font-bold text-gold">{quality.empty_count}</div>
+                </div>
+              </div>
+              <p className="text-sm text-text-secondary mt-3">
+                Стан:{" "}
+                <span className={quality.status === "ok" ? "text-[#7FA67A]" : quality.status === "warning" ? "text-[#E0A23B]" : "text-[#C4574A]"}>
+                  {quality.status}
+                </span>
+                {" · "}Текст поза структурою: {quality.text_outside_structure_pct}%
+              </p>
+              {quality.gaps?.length > 0 && (
+                <p className="text-xs text-text-secondary mt-1">
+                  Пропуски: {quality.gaps.map((g: number) => `№${g}`).join(", ")}
+                </p>
+              )}
+              <p className="text-xs text-text-secondary/60 mt-2">{quality.note}</p>
+            </>
+          )}
         </div>
       )}
     </PageShell>
