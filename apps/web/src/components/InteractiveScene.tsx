@@ -1065,10 +1065,12 @@ export default function InteractiveScene({
       if (M.instanceColor) M.instanceColor.needsUpdate = true;
     }
 
-    const clk = new THREE.Clock();
+    // THREE.Timer замість Clock (0.187): Clock позначено deprecated у консолі.
+    const timer = new THREE.Timer();
     function loop() {
-      const dt = Math.min(0.05, clk.getDelta());
-      const t = clk.elapsedTime;
+      timer.update();
+      const dt = Math.min(0.05, timer.getDelta());
+      const t = timer.getElapsed();
       const k = Math.min(1, dt * (RM ? 30 : 4));
 
       stateRef.current.day += (stateRef.current.dayT - stateRef.current.day) * Math.min(1, dt * (RM ? 30 : 1.6));

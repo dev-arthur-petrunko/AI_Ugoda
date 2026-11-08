@@ -122,6 +122,10 @@ export async function getSyncStatus() {
 export async function runSync() {
   return request<any>("/api/v1/sync/run", { method: "POST" });
 }
+
+export async function getSyncRuns(limit = 5) {
+  return request<{ items: any[] }>(`/api/v1/sync/runs?limit=${limit}`);
+}
 export async function getAnalysis(id: string) {
   return request<any>(`/api/v1/documents/${id}/analysis`);
 }
