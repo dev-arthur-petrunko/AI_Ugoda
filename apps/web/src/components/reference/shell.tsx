@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/Logo";
 import { getStats } from "@/lib/api";
+import { readTheme, applyTheme, type Theme } from "@/lib/theme";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -19,6 +20,7 @@ const NAV = [
   ["contracts", "Аналіз договорів", "/uk/contracts"],
   ["settings", "Налаштування", "/uk/settings"],
   ["admin", "Панель адміністратора", "/uk/admin"],
+  ["rada", "Верховна Рада", "https://zakon.rada.gov.ua"],
 ];
 
 // S3 (v5 §5.5): сайдбар — рівно 8 пунктів; решта (bookmarks, reports, contracts,
@@ -34,6 +36,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [q, setQ] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [theme, setTheme] = useState<Theme>("dark");
   const [stats, setStats] = useState<{ documents: number; revisions: number; provisions: number; links: number } | null>(null);
   const [statsErr, setStatsErr] = useState(false);
 
@@ -72,6 +75,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, [toast]);
 
+  useEffect(() => {
+    setTheme(readTheme());
+  }, []);
+
   const activeId = (() => {
     if (pathname === "/uk/admin") return "admin";
     if (pathname === "/uk/legislation" || pathname.startsWith("/uk/legislation/")) return "search";
@@ -87,6 +94,22 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     if (pathname === "/uk/settings") return "settings";
     return "overview";
   })();
+
+  const go = (href: string) => {
+    if (/^https?:\/\//.test(href)) {
+      window.open(href, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(href);
+    }
+    setSideOpen(false);
+    setModalOpen(false);
+  };
+
+  const toggleTheme = () => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    setTheme(next);
+  };
 
   const filtered = NAV.filter(([, label]) => label.toLowerCase().includes(q.toLowerCase()));
 
@@ -108,15 +131,33 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 className="nav"
                 data-go={id}
                 aria-current={activeId === id ? "page" : "false"}
-                onClick={() => {
-                  router.push(href);
-                  setSideOpen(false);
-                }}
+                onClick={() => go(href)}
               >
                 <span className="dot" />
                 {label}
               </button>
             ))}
+            <div className="grp">Джерела та тема</div>
+            <a
+              className="nav"
+              data-go="rada"
+              href="https://zakon.rada.gov.ua"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setSideOpen(false)}
+            >
+              <span className="dot" />
+              Верховна Рада
+            </a>
+            <button
+              className="nav"
+              data-go="theme"
+              aria-pressed={theme === "light"}
+              onClick={toggleTheme}
+            >
+              <span className="dot" />
+              {theme === "dark" ? "☀ Світла тема" : "🌙 Нічна тема"}
+            </button>
           </div>
         </aside>
         <div className="main">
@@ -156,10 +197,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 const first = filtered[0];
-                if (first) {
-                  router.push(first[2]);
-                  setModalOpen(false);
-                }
+                if (first) go(first[2]);
               }
             }}
           />
@@ -169,10 +207,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 key={id}
                 className="nav"
                 style={{ width: "100%" }}
-                onClick={() => {
-                  router.push(href);
-                  setModalOpen(false);
-                }}
+                onClick={() => go(href)}
               >
                 <span className="dot" />
                 {label}

@@ -253,6 +253,18 @@
 | Прибрано розвідувальні однофайлові спеки (`recipe.spec.ts`) та їхні скриншоти | `git status` — чисто |
 | pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
 
+### S4.4 — Сцена: більша, без написів, тема в меню (09.11.2026) ✅ виконано
+
+| Правка | Доказ |
+|---|---|
+| Сцена **більша**: сітка hero `1.25fr .75fr` → `1fr 1fr`, висота 460 → 560px | e2e: `.hero-scene` box **427×560** (було 380×460) |
+| Прибрано статичні написи з оверлея сцени: заголовок «AI Ugoda», «Законодавство України…», опис «Золоті куполи…», підказка «Тягніть — обертати…» | e2e: `.iu-title`/`.iu-hint`/`.iu-night-btn` → `toHaveCount(0)`; на кліп-знімку картки тексту немає |
+| Тема (день/ніч) винесено в меню: спільний `lib/theme.ts` (localStorage `ai-ugoda-theme` + CustomEvent); пункт «☀ Світла тема / 🌙 Нічна тема» у сайдбарі, сцена слухає подію | e2e: клік по пункту перемикає `theme-light` (`before=false → after=true`); сцена синхронізована |
+| Пункт **«Верховна Рада»** у меню → `https://zakon.rada.gov.ua` (новий таб); з'явився і в Ctrl+K | e2e: `.nav[data-go="rada"]` → текст «Верховна Рада» |
+| Прибрано warning three `PCFSoftShadowMap has been removed` → `PCFShadowMap` | консоль після правки: без цього warning (лишились лише артефакти `ReadPixels` від самих скриншотів) |
+| Прибрано мертвий CSS `.iu-title/.iu-hint/.iu-night-btn` та `container-type` | grep — згадок немає |
+| pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
+
 **Відкриті конфлікти (потребують рішення замовника, правило 3):**
 1. `docs/PLAN.md` — спринт вимагає файл із таблицею S0–S8; правило 5 вимагає рівно 3 файли. **Не створено** — план відсутній в git-історії, S4+ ведуться тут.
 2. Окремий `docs/SOURCES_VERIFIED.md` (3.1) — замінено §16 у `PROJECT_FULL_REPORT.md`; відновлювати чи ні.
@@ -510,7 +522,7 @@ docker exec aiugoda_api alembic upgrade head
 - **Репозиторій:** `https://github.com/dev-arthur-petrunko/AI_Ugoda`
 - **Автор:** Arthur Petrunko <arthurpetrunko@gmail.com>
 - **Гілка:** `main`
-- **Останні коміти:** S0+S1+S1.5 (`7a8f9aa`), S2 Playwright+CI (`657bfc5`), S3 тексти актів (див. `git log`)
+- **Останні коміти:** S0+S1+S1.5 (`7a8f9aa`), S2 Playwright+CI (`657bfc5`), S3 тексти актів, S4/S4.1/S4.2/S4.3/S4.4 (див. `git log`)
 
 ---
 

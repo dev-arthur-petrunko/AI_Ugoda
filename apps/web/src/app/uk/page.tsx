@@ -137,7 +137,7 @@ export default function OverviewPage() {
             </button>
           </form>
         </div>
-        <InteractiveScene className="hero-scene" height="460px" />
+        <InteractiveScene className="hero-scene" height="560px" />
       </div>
 
       {/* Швидкі дії */}

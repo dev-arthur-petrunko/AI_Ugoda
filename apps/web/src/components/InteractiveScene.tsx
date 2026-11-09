@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
+import { readTheme, THEME_EVENT, type Theme } from "@/lib/theme";
 
 interface Hotspot {
   key: number;
@@ -64,18 +65,6 @@ export default function InteractiveScene({
     statusText: string;
     path: string;
   } | null>(null);
-  const [isNight, setIsNight] = useState(true);
-
-  // Applies site-wide theme: night -> dark (default), day -> light site
-  const applySiteTheme = useCallback((night: boolean) => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("theme-light", !night);
-    try {
-      localStorage.setItem("ai-ugoda-theme", night ? "dark" : "light");
-    } catch {
-      /* storage unavailable */
-    }
-  }, []);
 
   const hotspots: Hotspot[] = [
     {
@@ -218,30 +207,19 @@ export default function InteractiveScene({
     setCardData(null);
   }, []);
 
-  const toggleDayNight = useCallback(() => {
-    setIsNight((prev) => {
-      const next = !prev;
-      stateRef.current.dayT = next ? 0 : 1;
-      applySiteTheme(next);
-      return next;
-    });
-  }, [applySiteTheme]);
-
-  // Restore persisted theme (default: night / dark site)
+  // Сцена слухає тему сайту (перемикається в меню) і перемикає день/ніч у 3D.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem("ai-ugoda-theme");
-    } catch {
-      /* storage unavailable */
-    }
-    const night = saved !== "light";
-    setIsNight(night);
-    stateRef.current.dayT = night ? 0 : 1;
-    stateRef.current.day = night ? 0 : 1;
-    applySiteTheme(night);
-  }, [applySiteTheme]);
+    const setDay = (theme: Theme) => {
+      const night = theme !== "light";
+      stateRef.current.dayT = night ? 0 : 1;
+      stateRef.current.day = night ? 0 : 1;
+    };
+    setDay(readTheme());
+    const onTheme = (e: Event) => setDay((e as CustomEvent<Theme>).detail);
+    window.addEventListener(THEME_EVENT, onTheme);
+    return () => window.removeEventListener(THEME_EVENT, onTheme);
+  }, []);
 
   // CSS styles injected once
   useEffect(() => {
@@ -258,75 +236,12 @@ export default function InteractiveScene({
         pointer-events: none;
         color: #f3e6bc;
         font-family: Inter, system-ui, sans-serif;
-        /* Текст оверлея міряємо шириною картки сцени, а не вікна */
-        container-type: inline-size;
       }
       #ai-ugoda-scene-canvas {
         position: absolute;
         inset: 0;
         z-index: 10;
         display: block;
-      }
-      .iu-title {
-        position: absolute;
-        left: clamp(12px, 4cqw, 44px);
-        top: clamp(12px, 4cqw, 36px);
-        max-width: calc(100% - 28px);
-      }
-      .iu-title h1 {
-        font: 600 clamp(22px, 9cqw, 48px) / 1.08 "Playfair Display", serif;
-        color: #f3e6bc;
-        margin: 0;
-        text-shadow: 0 2px 24px rgba(232, 200, 113, 0.35);
-      }
-      .iu-title .iu-title-sep {
-        color: #e8c871;
-        font-weight: 400;
-        margin: 0 6px;
-      }
-      .iu-title .iu-place {
-        color: #e8c871;
-        margin: 8px 0 0;
-        font: italic 500 clamp(13px, 4.2cqw, 17px)/1.4 "Source Serif 4", serif;
-        letter-spacing: 0.04em;
-        text-transform: none;
-        text-shadow: 0 1px 14px rgba(232, 200, 113, 0.4);
-      }
-      .iu-title .iu-sub {
-        color: #b3a28a;
-        margin-top: 8px;
-        font-size: clamp(12px, 3.6cqw, 15px);
-        max-width: 36ch;
-        line-height: 1.55;
-      }
-      /* У вузькій картці довгий опис/підказка затуляють сцену — ховаємо */
-      @container (max-width: 340px) {
-        .iu-title .iu-sub,
-        .iu-hint {
-          display: none;
-        }
-      }
-      .iu-title p {
-        margin-top: 8px;
-        font-size: 15px;
-        margin: 0;
-      }
-      .iu-hint {
-        position: absolute;
-        left: 12px;
-        /* не налазить на кнопку «Світла/Ніч» праворуч унизу */
-        right: 112px;
-        bottom: calc(14px + env(safe-area-inset-bottom, 0));
-        font-size: clamp(11px, 3.2cqw, 13px);
-        color: rgba(179, 162, 138, 0.85);
-        padding: 8px 14px;
-        border-radius: 99px;
-        background: rgba(15, 11, 8, 0.55);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        pointer-events: none;
-        text-align: center;
-        box-sizing: border-box;
       }
       .iu-card {
         position: absolute;
@@ -427,25 +342,6 @@ export default function InteractiveScene({
         transition: opacity 0.2s;
         white-space: nowrap;
       }
-      .iu-night-btn {
-        position: absolute;
-        right: 16px;
-        bottom: 16px;
-        z-index: 30;
-        pointer-events: auto;
-        background: rgba(15, 11, 8, 0.55);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(232, 200, 113, 0.4);
-        color: #f3e6bc;
-        padding: 8px 16px;
-        border-radius: 12px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-      .iu-night-btn:hover {
-        background: rgba(201, 162, 75, 0.2);
-      }
       .iu-err {
         position: absolute;
         inset: 0;
@@ -473,13 +369,6 @@ export default function InteractiveScene({
         .iu-card.on {
           transform: none;
         }
-        .iu-hint {
-          display: none;
-        }
-        .iu-night-btn {
-          top: auto;
-          bottom: 16px;
-        }
       }
       @media (prefers-reduced-motion: reduce) {
         * {
@@ -502,7 +391,8 @@ export default function InteractiveScene({
     const R = new THREE.WebGLRenderer({ canvas, antialias: true });
     R.setPixelRatio(Math.min(window.devicePixelRatio, window.innerWidth < 800 ? 1.5 : 2));
     R.shadowMap.enabled = true;
-    R.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCFSoftShadowMap вилучено з three (попередження в консолі) — використовуємо PCF
+    R.shadowMap.type = THREE.PCFShadowMap;
 
     const S = new THREE.Scene();
     S.background = new THREE.Color(0x0b0b14);
@@ -1371,17 +1261,6 @@ export default function InteractiveScene({
 
   return (
     <div ref={containerRef} className={`relative ${className}`} style={{ height, width: "100%", background: "#0c0a0b" }}>      <div id="ai-ugoda-scene-ui" aria-hidden="true">
-        <div className="iu-title">
-          <h1>AI Ugoda</h1>
-          <p className="iu-place">Законодавство України, зрозуміло й пов'язано</p>
-          <p className="iu-sub">
-            Золоті куполи над Дніпром — і кожен камінь площі веде до розділу законодавства. Оберіть, куди йти.
-          </p>
-        </div>
-        <div className="iu-hint">Тягніть — обертати · Колесо — наближення · Клік по предмету — відкрити розділ</div>
-        <button className="iu-night-btn" onClick={toggleDayNight} aria-label="Перемкнути день і ніч, світлу та темну тему сайту">
-          {isNight ? "☀ Світла" : "🌙 Ніч"}
-        </button>
         <div id="iu-tip" className="iu-tip" />
       </div>
       <div className="iu-vg" aria-hidden="true" />

@@ -75,7 +75,7 @@ kbd{font:500 12px 'JetBrains Mono',monospace;border:1px solid rgba(232,200,113,.
 h1{font:600 clamp(34px,4.4vw,58px)/1.08 var(--font-playfair),'Playfair Display',serif;color:var(--champ);letter-spacing:-.01em;max-width:15ch}
 h2{font:600 24px/1.2 var(--font-playfair),'Playfair Display',serif;color:var(--champ)}
 .lead{font:italic 400 20px/1.55 'Source Serif 4',serif;color:var(--muted);max-width:50ch;margin-top:14px}
-.hero{padding:40px;display:grid;grid-template-columns:1.25fr .75fr;gap:32px;align-items:center;overflow:hidden}
+.hero{padding:40px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;overflow:hidden}
 .mark{width:100%;max-width:230px;margin:auto;filter:drop-shadow(0 0 40px rgba(201,162,75,.35))}
 .u{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.6s .2s cubic-bezier(.5,0,.2,1) forwards}
 .pt{transform-box:fill-box;transform-origin:center;scale:0;animation:pop .6s cubic-bezier(.2,1.5,.4,1) forwards}
