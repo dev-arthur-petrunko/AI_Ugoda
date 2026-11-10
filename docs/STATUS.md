@@ -265,6 +265,16 @@
 | Прибрано мертвий CSS `.iu-title/.iu-hint/.iu-night-btn` та `container-type` | grep — згадок немає |
 | pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
 
+### S4.5 — Сцена як фон hero-блоку (10.11.2026) ✅ виконано
+
+| Правка | Доказ |
+|---|---|
+| 3D-сцена тепер **на весь фон блоку hero** (не окрема колонка): `.hero` → `display:block`, сцена `position:absolute; inset:0`; заголовок «Законодавство, яке видно наскрізь» і лід поверх сцени (`.hero-copy`, z-index 30) | e2e: `.hero` box 1128×560, `.hero-scene` box 1126×558 (сцена = фон блоку); кліп-скриншот: текст поверх міста |
+| Градієнтна вуаль `.hero::after` (зліва темна → прозрава праворуч) для читабельності тексту; у світлій темі — світла вуаль; `text-shadow` на h1/lead (у світлій темі вимкнено) | скриншот широкого в'юпорта: заголовок читається поверх сцени |
+| Показники сцени: canvas 0 помилок консолі, кліки/пошук працюють (елементи керування `pointer-events:auto`) | Playwright 19 passed / 0 failed |
+| Тимчасово для запуску e2e піднято середовище: Docker Desktop (postgres/redis healthy) + uvicorn :8000 — попередні 5 failed були «немає зв'язку з API» (зупинений Docker), не регресія | `GET /api/v1/health` → 200; e2e → 19 passed |
+| pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
+
 **Відкриті конфлікти (потребують рішення замовника, правило 3):**
 1. `docs/PLAN.md` — спринт вимагає файл із таблицею S0–S8; правило 5 вимагає рівно 3 файли. **Не створено** — план відсутній в git-історії, S4+ ведуться тут.
 2. Окремий `docs/SOURCES_VERIFIED.md` (3.1) — замінено §16 у `PROJECT_FULL_REPORT.md`; відновлювати чи ні.

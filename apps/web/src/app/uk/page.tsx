@@ -116,7 +116,8 @@ export default function OverviewPage() {
   return (
     <>
       <div className="glass gold hero">
-        <div>
+        <InteractiveScene className="hero-scene" height="100%" />
+        <div className="hero-copy">
           <h1>Законодавство, яке видно наскрізь</h1>
           <p className="lead">
             Закон на будь-яку дату, колізії між нормами і ризики простою мовою. Кожне твердження має
@@ -137,7 +138,6 @@ export default function OverviewPage() {
             </button>
           </form>
         </div>
-        <InteractiveScene className="hero-scene" height="560px" />
       </div>
 
       {/* Швидкі дії */}
