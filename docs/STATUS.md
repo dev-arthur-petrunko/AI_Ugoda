@@ -288,8 +288,18 @@
 | pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
 
 **Не виконано — потребує окремого рішення власника:**
-- **`next` 14.2.15 (критичний, у т.ч. RCE/SSRF/middleware bypass)** — фіксу в межах 14.x нема; `npm audit fix --force` ставить **next@16.4.6** (major: React 19, асинхронні `params`/`searchParams`, зміни конфігу). Окремий міграційний коміт за рішенням власника.
-- `postcss` high — вразливий код у вбудованій залежності `next`; зникне після апгрейду next.
+- ~~`next` 14.2.15 (критичний)~~ — **закрито у S4.7** (див. нижче).
+- `postcss` high — вразливий код у вбудованій залежності `next`; зник після апгрейду next.
+
+### S4.7 — Next.js 14 → 16.4.6 (критичні CVE) (11.11.2026) ✅ виконано
+
+| Правка | Доказ |
+|---|---|
+| `next` **14.2.15 → 16.4.6** (критичні CVE: RCE в Image Optimizer, SSRF, authorization bypass middleware, HTTP request smuggling, cache poisoning, DoS — у `npm audit` фіксу в межах 14.x нема) | `npm audit`: **0 vulnerabilities** (було 1 critical + 2 high: next, postcss, follow-redirects) |
+| Peer-дозволяє `react ^18.2.0` → **React 19 не потрібен**, react/react-dom не змінювались | `npm view next@16.4.6 peerDependencies` |
+| Міграція мінімальна: усі сторінки — client-компоненти (`useParams`/`useSearchParams`/`useRouter`), async-`params` не застосовуються; `next lint` прибрано з `scripts` (команду вилучено в Next 16); `tsconfig.json`/`next-env.d.ts` оновлено самим Next (jsx→react-jsx, target ES2017) | `next build` → **exit 0** (static /uk, /uk/legislation, /uk/settings; dynamic /uk/legislation/[documentId]) |
+| CI: node-version 20 відповідає `engines: >=20.9.0` — workflow не змінювався | `.github/workflows/ci.yml` без правок |
+| pytest / ruff / tsc / npm audit / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **0 vulnerabilities** / ✅ **19 passed, 0 failed** |
 
 **Відкриті конфлікти (потребують рішення замовника, правило 3):**
 1. `docs/PLAN.md` — спринт вимагає файл із таблицею S0–S8; правило 5 вимагає рівно 3 файли. **Не створено** — план відсутній в git-історії, S4+ ведуться тут.
