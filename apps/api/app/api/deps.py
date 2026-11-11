@@ -2,7 +2,8 @@ from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt import PyJWTError
+from jwt import decode as jwt_decode
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -46,7 +47,7 @@ def get_current_user(
     token = credentials.credentials
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt_decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         email: str | None = payload.get("sub")
         if email is None:
             raise HTTPException(
@@ -54,7 +55,7 @@ def get_current_user(
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

@@ -243,8 +243,8 @@ class ConflictEngine:
             rev = provision.revision
             if rev:
                 effective_to = rev.effective_to
-        except Exception:  # noqa: BLE001, S110
-            pass
+        except Exception:  # noqa: BLE001, S110 — lazy relationship: без revision значення лишається None
+            pass  # nosec B110
 
         if not is_temp and not valid_until and not effective_to:
             return None

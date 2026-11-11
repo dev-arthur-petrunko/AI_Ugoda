@@ -2,7 +2,9 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
+from jwt import PyJWTError
+from jwt import decode as jwt_decode
+from jwt import encode as jwt_encode
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -41,7 +43,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt_encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -56,7 +58,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     access_token = create_access_token(
         data={"sub": user.email, "role": "admin" if user.is_superuser else "user"}
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
 
 
 @router.post("/register")
@@ -77,12 +79,12 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
 async def refresh(token: str = Depends(oauth2_scheme)):
     """Оновлення токена."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt_decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
         role = payload.get("role", "user")
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         access_token = create_access_token(data={"sub": email, "role": role})
-        return {"access_token": access_token, "token_type": "bearer"}
-    except JWTError:
+        return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
+    except PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")

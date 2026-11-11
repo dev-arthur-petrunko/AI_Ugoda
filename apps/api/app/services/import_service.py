@@ -363,8 +363,8 @@ class ImportService:
         if parsed.effective_date:
             try:
                 effective_from = date.fromisoformat(parsed.effective_date)
-            except Exception:  # noqa: BLE001, S110
-                pass
+            except Exception:  # noqa: BLE001, S110 — биті дати з джерела: effective_from лишається None
+                pass  # nosec B110
 
         # Об'єднуємо всі положення в нормалізований текст
         all_text = self._flatten_provisions_text(parsed.provisions)

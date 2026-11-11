@@ -191,8 +191,8 @@ class ZakonRadaParser:
             if m:
                 try:
                     return formatter(m)
-                except Exception:  # noqa: BLE001, S112
-                    continue
+                except Exception:  # noqa: BLE001, S112 — пробуємо наступний формат дати
+                    continue  # nosec B112
         return None
 
     def _parse_ukrainian_date(self, match) -> str:

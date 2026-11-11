@@ -275,6 +275,22 @@
 | Тимчасово для запуску e2e піднято середовище: Docker Desktop (postgres/redis healthy) + uvicorn :8000 — попередні 5 failed були «немає зв'язку з API» (зупинений Docker), не регресія | `GET /api/v1/health` → 200; e2e → 19 passed |
 | pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
 
+### S4.6 — Безпека (окремий коміт, рішення власника) (11.11.2026) ✅ виконано
+
+| Правка | Доказ |
+|---|---|
+| **Баг `requirements.txt`:** рядок 18 був злитий (`pytest-cov==5.0.0redis==5.2.1`) — pip/pip-audit не могли прочитати файл | після фіксу `pip_audit -r requirements.txt` проходить |
+| **`python-jose` → `PyJWT==2.15.0`** (CVE-2026-85394 / PYSEC-2026-4298 — фіксу в python-jose нема; наш код декодує з `algorithms=["HS256"]`). Міграція: `deps.py`, `auth.py` (jwt_decode/encode, PyJWTError) | `python -c` перевірка: encode/decode ok, RS256 → `InvalidAlgorithmError`; `pytest tests/test_auth.py` → 10 passed; python-jose видалено з env |
+| **Оновлення залежностей** за pip-audit: `certifi` → 2026.10.23 (PYSEC-2026-4320), `lxml` 5.3.0 → **6.1.0** (PYSEC-2026-87 ×2), `python-multipart` 0.0.9 → **0.0.31** (8 CVE), `pytest` 8.3.3 → **9.0.3** | `pip_audit -r requirements.txt`: **20 → 0 вразливостей** |
+| **npm**: `npm audit fix` — виправлено `follow-redirects` (high); `package-lock.json` оновлено | `npm audit`: було 3 (1 critical + 2 high) → лишилось 2 (next + postcss) |
+| **bandit**: 7 LOW (B105 ×3 хибні — `token_type: "bearer"` і літерал перевірки dev-secret; B110/B112 ×4 — вже задокументовані except) → `# nosec B…` з обґрунтуванням у noqa | `bandit -r app`: **0 issues** |
+| **Секрети**: `git grep` sk-/AKIA/ghp_/xox- → 0 збігів; `.env` у `.gitignore` | grep порожній |
+| pytest / ruff / tsc / Playwright | ✅ 30 passed, 2 skipped / ✅ All checks passed! / ✅ 0 / ✅ **19 passed, 0 failed** |
+
+**Не виконано — потребує окремого рішення власника:**
+- **`next` 14.2.15 (критичний, у т.ч. RCE/SSRF/middleware bypass)** — фіксу в межах 14.x нема; `npm audit fix --force` ставить **next@16.4.6** (major: React 19, асинхронні `params`/`searchParams`, зміни конфігу). Окремий міграційний коміт за рішенням власника.
+- `postcss` high — вразливий код у вбудованій залежності `next`; зникне після апгрейду next.
+
 **Відкриті конфлікти (потребують рішення замовника, правило 3):**
 1. `docs/PLAN.md` — спринт вимагає файл із таблицею S0–S8; правило 5 вимагає рівно 3 файли. **Не створено** — план відсутній в git-історії, S4+ ведуться тут.
 2. Окремий `docs/SOURCES_VERIFIED.md` (3.1) — замінено §16 у `PROJECT_FULL_REPORT.md`; відновлювати чи ні.

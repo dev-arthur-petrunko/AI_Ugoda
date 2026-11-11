@@ -68,8 +68,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     await self._redis.zrem(key, str(now))
                     return False
                 return True
-            except Exception:  # noqa: BLE001, S110
-                pass
+            except Exception:  # noqa: BLE001, S110 — фолбек на in-memory лічильник, коли Redis недоступний
+                pass  # nosec B110
 
         now = time.time()
         window = 60.0
