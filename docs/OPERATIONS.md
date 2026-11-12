@@ -58,7 +58,7 @@ cd ..\..; python -m pytest -q; python -m ruff check .        # 30 passed / clean
 - **Через UI**: `/uk/admin` → «Запустити синхронізацію» (потрібні admin-права; в dev — `AUTH_DISABLED` не дає admin!) → звіт: тривалість, знайдено/додано/оновлено/помилки, «Не імпортовано» URL+причина, попередження, попередні запуски.
 - **Через API**: `POST /api/v1/sync/run` (admin) → фоновий `sync_once()`; спостерігати: `GET /sync/runs?limit=5`, `GET /sync/status` (конектори, `import_locked`, стан джерел).
 - **Одноразовий скрипт**: `python apps/api/scripts/run_import_once.py` → JSON-звіт.
-- **Одноразові**: `scripts/init_db.py` (create_all без міграцій), `scripts/dev_fixtures.py` (5 фікстур-актів).
+- **Одноразові**: `scripts/init_db.py` (create_all без міграцій), `scripts/dev_fixtures.py` (5 фікстур-актів), `scripts/extract_links.py` (§4.3 — backfill `legal_links` + `legal_events` з приміток джерела; ідемпотентно, повтор → `+0`).
 - **Обмеження**: один запуск одночасно (`_import_lock`, 409); ≤1 HTTP-запит/с; лише білий список хостів; типовий результат Tier-1: `discovered=13, updated=13, errors=0`.
 
 ## 4. Моніторинг і діагностика
@@ -97,7 +97,7 @@ cd ..\..; python -m pytest -q; python -m ruff check .        # 30 passed / clean
 6. **Реальний `GET /graph/{id}`** — вузли/ребра з `legal_links` (UI вже готовий, зараз стаб).
 7. **`GET/PATCH /conflicts/{id}`** — збереження `conflict_candidates` + підтвердження експертом; реалізувати `SPECIAL_VS_GENERAL` і `CODE_DUPLICATION`.
 8. **Підключити `RiskAssessor`** до ендпоінта/UI як «Індекс уваги» (формула готова, ваги затверджує юрист).
-9. **Стрім змін** `/uk/changes`: наповнювати `legal_events` з дифів ревізій замість сортування списку.
+9. ~~**Стрім змін** `/uk/changes`~~ — ✅ виконано: `legal_events` заповнюються з приміток джерела (10 473 подій), `GET /events`, UI показує дію/статтю/акт-джерело/дату. Далі: наповнювати події й з дифів ревізій.
 10. **Воркер розкладу**: замінити `worker`-заглушку на плановий `sync_once()` (cron/beat) + сповіщення про `down`-джерела.
 
 ### P2 — якість AI/RAG

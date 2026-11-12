@@ -67,6 +67,7 @@ export async function getStats() {
     revisions: number;
     provisions: number;
     links: number;
+    events?: number;
     documents_official?: number;
     documents_fixture?: number;
     has_official?: boolean;
@@ -132,6 +133,30 @@ export async function getAnalysis(id: string) {
 
 export async function getQuality(id: string) {
   return request<any>(`/api/v1/documents/${id}/quality`);
+}
+
+// --- Зміни (§4.3) -----------------------------------------------------------
+export type ChangeEvent = {
+  id: string;
+  event_type: string;
+  event_label: string;
+  source_provision: string | null;
+  source_act_ref: string | null;
+  source_event_date: string | null;
+  affected_document_id: string;
+  affected_title: string;
+  source_document_id: string | null;
+  source_title: string | null;
+  source_url: string | null;
+  found_by: string;
+};
+
+export async function listEvents(limit = 50, offset = 0, documentId?: string) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (documentId) params.set("document_id", documentId);
+  return request<{ total: number; limit: number; offset: number; items: ChangeEvent[] }>(
+    `/api/v1/events?${params}`,
+  );
 }
 
 // Bookmarks

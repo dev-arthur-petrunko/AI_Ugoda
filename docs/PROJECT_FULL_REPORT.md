@@ -32,9 +32,9 @@ AI Ugoda/
 | `legal_documents` | `source_id` UQ, `nreg` UQ, title, тип, номер, `adoption_date`, `legal_force_level`, `data_origin` (`official|fixture`), `source_url`, статус |
 | `document_revisions` | `effective_from/to`, `source_host`, `source_checksum` (raw SHA-256), `source_hash` (normalized SHA-256), `normalized_text`, `parser_version`, `verification_status`; **UQ(doc, effective_from)**, **UQ(doc, source_hash)** |
 | `legal_provisions` | `provision_identifier` UQ на редакцію, ієрархія `parent_provision_id`, `article/part/point/subpoint_number`, `heading`, `text`, `ordinal`, `content_checksum`; **`embedding Vector(1536)`** + **`search_vector` tsvector** (генерований) |
-| `legal_links` | типи `amends|repeals|refers_to|implements|interprets|harmonizes_with`, `evidence_text`, `resolution_status` |
+| `legal_links` | типи `amends|repeals|…`, `evidence_text`, `resolution_status` — **заповнені з приміток джерела: 15 330 рядків** |
 | `legal_force_levels` | 8 рівнів: Конституція 100 · Міжн. договори 90 · Закони/кодекси 80 · Постанови ВР 70 · Укази П 60 · ПКМУ 50 · Накази мін-в 40 · Місцеві 30 |
-| `legal_events`, `legal_references` | події змін; міжактові посилання (заповнюються частково) |
+| `legal_events`, `legal_references` | **`legal_events`: 10 473 події змін** (дія, стаття, акт-джерело, дата; міграція `s4changenotes`); `legal_references` — поки не використовується |
 | `conflict_candidates` | `conflict_type`, `confidence`, `rule_applied`, `winner_provision_id`, `explanation`, `review_status` |
 | `import_runs` | журнал імпортів: `status`, лічильники, `report_json` |
 | `ai_analyses`, `audit_logs` | аналізи AI (ще не пишуться); аудит-лог (зокрема `source_not_allowed`) |
@@ -102,6 +102,31 @@ level: ≤33 low · ≤66 mid · інакше high
 Доказ: Конституція **158/161, `gaps_count=0`, виключено №121–123 (Розділ VII «Прокуратура»), статус `ok`**; 12 із 13 актів `ok`; єдиний `warning` — КЗпП №322-08 (пропуски №257–258 — їх немає і в офіційному тексті, тобто це чесний пропуск, а не виключення).
 
 ### 4.6 AI (RAG) — див. повні промти в §7
+
+### 4.7 Звʼязки та стрічка змін (`change_notes.py`, детерміновано, без LLM)
+
+**Джерело фактів — офіційні примітки джерела у фігурних дужках:**
+```
+{Статтю 65 доповнено частиною одинадцятою згідно із Законом № 3587-IX від 22.02.2024}
+{Статтю 186 - 2 виключено на підставі Закону № 3504-IV від 23.02.2006}
+{Частина третя статті 65 в редакції Законів № 1405-VIII від 02.06.2016, № 3587-IX від 22.02.2024}
+```
+
+**`extract_change_notes(text)`** (клас `ChangeNote`):
+- визначає **дію** за ключовим словом формулювання: `excludes`(виключен) → `adds`(доповнен) → `repeals`(чинність) → `replaces`(редакції) → `amends`(змін);
+- витягує **акт-джерело** (`№ 3587-IX від 22.02.2024`; різні формати: `55/97-ВР`, `2992-12`, 2-значний рік `07.02.97` → `1997-02-07`);
+- витягує **номер статті** (`статті 64 - 1` → `64-1`);
+- мапить дію на `link_type` (`adds|replaces|amends` → `amends`, `excludes|repeals` → `repeals`);
+- **не розпізнані примітки ігноруються** (примітка без акта-джерела не є фактом «хто змінив») — жодних здогадок.
+
+**Збереження** (`ImportService.build_links_for_revision`, викликається з `import_parsed_document` і з `scripts/extract_links.py`):
+- `legal_links`: `source_provision_id` + `target_document_id` (якщо акт є в каталозі → `resolved`, інакше → `unresolved`), `evidence_text` = фрагмент примітки, `source_meta_json` = {action, act_number, act_date, article, parser};
+- `legal_events`: `event_type` = дія, `source_provision` = стаття, `source_act_ref` = «№ … від …», `source_event_date` = дата акта;
+- **ідемпотентно**: повторний запуск → `+0` (дедуплікація за ключем source/target/type/act_number/evidence та affected/type/provision/act_ref).
+
+**Доказ:** 15 330 `legal_links` + 10 473 `legal_events` (backfill по 13 актах; `GET /api/v1/stats` показує обидва лічильники; повтор `scripts/extract_links.py` → `+0/+0`).
+
+**Ендпоінт:** `GET /api/v1/events` (пагінація, фільтри `document_id`/`event_type`, сортування за `source_event_date` DESC, поле `found_by="code"`), `GET /api/v1/events/{id}`. Міграція `s4changenotes` додає `legal_events.source_provision` + `source_act_ref`.
 `SearchService.search(question, limit=10)` → перша стаття кожного хіта як контекст (`[Норма i] heading\n text[:1500]`) → провайдер (`mock|groq|openai|anthropic`) → відповідь, `key_points` (5 перших рядків), 3 цитування з **реальною перевіркою** `verify_citation()` (`verified` = підрядок у тексті норми), `confidence` = частка підтверджених цитат (без хардкоду), невідповідні → `warnings`; помилка провайдера → чесне «Сервіс недоступний» (без фолбеку в мок). Порожній контекст → «не знайдено в базі», `confidence=0.0`; mock → «Демо-відповідь», `confidence=0.0`.
 
 ---
@@ -118,7 +143,7 @@ level: ≤33 low · ≤66 mid · інакше high
 | `/uk/conflicts` | Драбина 8 рівнів сили, 4 правила вибору, список знайдених колізій (9 типів, confidence, правило, пояснення) |
 | `/uk/legal-map` | Селектор 20 актів → вузли/ребра (докі порожній граф — стаб API) |
 | `/uk/monitoring` | Правила моніторингу: створення/список/видалення |
-| `/uk/changes` | Останні акти за датою + стан джерел (справжній стрім змін — поки що сортування списку) |
+| `/uk/changes` | Стрічка «Нові зміни» з `legal_events`: дія (змінено/доповнено/виключено/редакція), стаття, акт-джерело з датою, лінк на офіційний текст; бейдж «знайдено програмою» |
 | `/uk/workspace` | Приватне сховище документів (список; завантаження — беклог) |
 | `/uk/bookmarks` | Закладки користувача (посилання, нотатка, видалення) |
 | `/uk/reports` | 4 KPI (акти/редакції/статті/зв'язки); експорт — беклог |

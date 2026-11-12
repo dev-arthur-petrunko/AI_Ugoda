@@ -19,9 +19,11 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.document_revision import DocumentRevision
 from app.models.legal_document import LegalDocument
+from app.models.legal_event import LegalEvent
 from app.models.legal_force_level import LegalForceLevel
 from app.models.legal_link import LegalLink
 from app.models.legal_provision import LegalProvision
+from app.services.change_notes import extract_change_notes
 from app.services.parser import ParsedDocument
 
 
@@ -393,7 +395,141 @@ class ImportService:
         # 4. Імпортуємо положення рекурсивно
         self._import_provisions_recursive(revision, parsed.provisions)
 
+        # 5. §4.3: з офіційних приміток про зміни будуємо legal_links + legal_events
+        self.build_links_for_revision(revision, doc)
+
         return doc
+
+    def build_links_for_revision(
+        self, revision: DocumentRevision, document: LegalDocument
+    ) -> dict[str, int]:
+        """§4.3: ідемпотентно будує зв'язки й події з приміток джерела.
+
+        Джерело фактів — офіційні примітки у фігурних дужках:
+        «{Статтю 65 доповнено … згідно із Законом № 3587-IX від 22.02.2024}».
+        Нерозпізнані примітки не створюють записів (не вгадуємо).
+        """
+        from datetime import date as _date
+
+        provisions = (
+            self.db.query(LegalProvision)
+            .filter(LegalProvision.document_revision_id == revision.id)
+            .all()
+        )
+        if not provisions:
+            return {"links": 0, "events": 0}
+
+        # Індекс актів каталогу для зіставлення «№ 435-IV» → документ.
+        docs_by_nreg: dict[str, LegalDocument] = {
+            (d.nreg or "").lower().replace(" ", ""): d
+            for d in self.db.query(LegalDocument).all()
+        }
+
+        # Дедуплікація: наявні зв'язки положень цієї редакції.
+        # Ключ будується так само, як при вставці: source, target, type,
+        # act_number (з source_meta_json), evidence.
+        existing_links: set[tuple] = set()
+        for lk in (
+            self.db.query(LegalLink)
+            .filter(LegalLink.source_provision_id.in_([str(p.id) for p in provisions]))
+            .all()
+        ):
+            meta = lk.source_meta_json or {}
+            existing_links.add(
+                (
+                    str(lk.source_provision_id),
+                    str(lk.target_document_id or ""),
+                    lk.link_type,
+                    str(meta.get("act_number") or ""),
+                    lk.evidence_text,
+                )
+            )
+        # Наявні події, щоб повторний імпорт не дублював стрічку
+        # (ключ будується з тих самих значень, що й зберігаються в рядку).
+        def _event_key(affected: str, etype: str, article: str | None, act_ref: str) -> tuple:
+            return (affected, etype, article, act_ref)
+
+        existing_events: set[tuple] = {
+            _event_key(str(e.affected_document_id), e.event_type, e.source_provision, e.source_act_ref)
+            for e in self.db.query(LegalEvent)
+            .filter(LegalEvent.affected_document_id == str(document.id))
+            .all()
+        }
+
+        links_added = 0
+        events_added = 0
+
+        for prov in provisions:
+            if not prov.text:
+                continue
+            for note in extract_change_notes(prov.text):
+                target_doc = docs_by_nreg.get(note.act_number.lower().replace(" ", ""))
+                resolved = target_doc is not None
+                status = "resolved" if resolved else "unresolved"
+                evidence = note.evidence
+                # Акт-джерело в ключі: для unresolved (немає в каталозі) рядки
+                # з різними актами не «склеюються» в один.
+                key = (
+                    str(prov.id),
+                    str(target_doc.id) if target_doc else "",
+                    note.link_type,
+                    note.act_number,
+                    evidence,
+                )
+                if key not in existing_links:
+                    existing_links.add(key)
+                    self.db.add(
+                        LegalLink(
+                            source_provision_id=str(prov.id),
+                            target_document_id=str(target_doc.id) if target_doc else None,
+                            target_provision_id=None,
+                            link_type=note.link_type,
+                            direction="source_to_target",
+                            evidence_text=evidence,
+                            resolution_status=status,
+                            source_meta_json={
+                                "action": note.action,
+                                "act_number": note.act_number,
+                                "act_date": note.act_date,
+                                "article": note.article,
+                                "parser": "change_notes/v1",
+                            },
+                        )
+                    )
+                    links_added += 1
+
+                act_ref = (
+                    f"№ {note.act_number} від {note.act_date}"
+                    if note.act_date
+                    else f"№ {note.act_number}"
+                )
+                event_key = _event_key(str(document.id), note.event_type, note.article, act_ref)
+                if event_key not in existing_events:
+                    existing_events.add(event_key)
+                    event_date = None
+                    if note.act_date:
+                        try:
+                            event_date = _date.fromisoformat(note.act_date)
+                        except ValueError:  # pragma: no cover — нормалізація вже гарантує формат
+                            event_date = None
+                    self.db.add(
+                        LegalEvent(
+                            source_document_id=str(target_doc.id) if target_doc else None,
+                            affected_document_id=str(document.id),
+                            event_type=note.event_type,
+                            source_event_date=event_date,
+                            effective_date=event_date,
+                            source_provision=note.article,
+                            source_act_ref=act_ref,
+                            source_url=revision.source_url,
+                            processing_status="parsed",
+                            ai_summary_status="pending",
+                        )
+                    )
+                    events_added += 1
+
+        self.db.commit()
+        return {"links": links_added, "events": events_added}
 
     def _map_document_type_to_force_level(self, doc_type: str) -> str:
         """Мапує тип документа на рівень юридичної сили."""

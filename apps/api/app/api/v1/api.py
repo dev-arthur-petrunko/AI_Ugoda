@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     contracts,
     diff,
     documents,
+    events,
     graph,
     health,
     monitoring,
@@ -30,3 +31,4 @@ api_router.include_router(graph.router, prefix="/graph", tags=["graph"])
 api_router.include_router(bookmarks.router, prefix="/bookmarks", tags=["bookmarks"])
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 api_router.include_router(contracts.router, prefix="/contracts", tags=["contracts"])
+api_router.include_router(events.router, prefix="/events", tags=["events"])

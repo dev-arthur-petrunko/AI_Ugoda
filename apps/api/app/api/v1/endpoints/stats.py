@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.document_revision import DocumentRevision
 from app.models.legal_document import LegalDocument
+from app.models.legal_event import LegalEvent
 from app.models.legal_link import LegalLink
 from app.models.legal_provision import LegalProvision
 
@@ -24,6 +25,7 @@ async def stats(db: Session = Depends(get_db)):
         "revisions": db.query(DocumentRevision).count(),
         "provisions": db.query(LegalProvision).count(),
         "links": db.query(LegalLink).count(),
+        "events": db.query(LegalEvent).count(),
         # S3.2: окремі лічильники по походженню даних
         "documents_official": by_origin.get("official", 0),
         "documents_fixture": by_origin.get("fixture", 0),

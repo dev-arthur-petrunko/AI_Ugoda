@@ -21,6 +21,10 @@ class LegalEvent(Base, TimestampMixin, UUIDMixin):
         "affected_document_id", String(36), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    # §4.3: з якої саме статті знято/змінено норму та який акт вніс зміну
+    # (з офіційної примітки джерела; «№ 1667-IX від 15.07.2021»).
+    source_provision: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    source_act_ref: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     source_event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     discovered_at: Mapped[date | None] = mapped_column(Date, nullable=True)
