@@ -89,28 +89,30 @@ class AIService:
             elif self.provider == "anthropic":
                 answer = self._call_anthropic(question, context_text)
             else:
-                answer = self._mock_answer(question, context_provisions, context_text).answer
-        except Exception as exc:  # noqa: BLE001 — fallback на mock у разі помилки
-            answer = f"Помилка провайдера {self.provider}: {exc}. (Використано fallback mock)"
-            return self._mock_answer(question, context_provisions, context_text)
-
-        # 4. Формуємо цитування
-        citations = []
-        for prov in context_provisions[:3]:
-            citations.append(
-                Citation(
-                    provision_id=str(prov.id),
-                    quote=(prov.text[:200] if prov.text else ""),
-                    verified=True,
-                )
+                raise ValueError(f"Невідомий провайдер: {self.provider}")
+        except Exception as exc:  # noqa: BLE001 — чесна помилка замість фолбеку в мок
+            return AskResult(
+                answer="Сервіс відповідей тимчасово недоступний. Спробуйте пізніше.",
+                key_points=[],
+                citations=[],
+                confidence=0.0,
+                warnings=[f"Помилка провайдера {self.provider}: {exc}"],
+                provider=self.provider,
             )
+
+        # 4. Цитування з реальною перевіркою і чесною впевненістю
+        citations = self._verify_citations(context_provisions, quote_len=200)
+        warnings = []
+        unverified = sum(1 for c in citations if not c.verified)
+        if unverified:
+            warnings.append(f"Не підтверджено текстом норми: {unverified} з {len(citations)} цитат")
 
         return AskResult(
             answer=answer,
             key_points=self._extract_key_points(answer),
             citations=citations,
-            confidence=0.85,
-            warnings=[],
+            confidence=self._confidence(citations),
+            warnings=warnings,
             provider=self.provider,
         )
 
@@ -201,24 +203,44 @@ class AIService:
     def _mock_answer(
         question: str, provisions: list[LegalProvision], context_text: str
     ) -> AskResult:
-        """Мок-відповідь (за замовчуванням, без реального LLM)."""
+        """Демо-відповідь (без LLM): без перевірки цитат і без впевненості."""
+        citations = [
+            Citation(
+                provision_id=str(prov.id),
+                quote=(prov.text[:100] if prov.text else ""),
+                verified=False,
+            )
+            for prov in provisions[:3]
+        ]
+        return AskResult(
+            answer=f"Знайдено {len(provisions)} релевантних норм. (Демо-відповідь — потрібен реальний LLM провайдер)",
+            key_points=[f"Знайдено {len(provisions)} норм"],
+            citations=citations,
+            confidence=0.0,
+            warnings=["Демо-відповідь: цитати не перевірялися, впевненість не обчислювалася"],
+            provider="mock",
+        )
+
+    def _verify_citations(self, provisions: list[LegalProvision], quote_len: int = 200) -> list[Citation]:
+        """Цитати з реальною перевіркою підрядка в тексті норми (L1)."""
         citations = []
         for prov in provisions[:3]:
+            quote = (prov.text or "")[:quote_len]
             citations.append(
                 Citation(
                     provision_id=str(prov.id),
-                    quote=(prov.text[:100] if prov.text else ""),
-                    verified=True,
+                    quote=quote,
+                    verified=bool(quote) and self.verify_citation(str(prov.id), quote),
                 )
             )
-        return AskResult(
-            answer=f"Знайдено {len(provisions)} релевантних норм. (Mock відповідь — потрібен реальний LLM провайдер)",
-            key_points=[f"Знайдено {len(provisions)} норм"],
-            citations=citations,
-            confidence=0.5,
-            warnings=["Mock-відповідь — потрібен реальний LLM провайдер"],
-            provider="mock",
-        )
+        return citations
+
+    @staticmethod
+    def _confidence(citations: list[Citation]) -> float:
+        """Чесна впевненість = частка підтверджених цитат (без хардкоду)."""
+        if not citations:
+            return 0.0
+        return round(sum(1 for c in citations if c.verified) / len(citations), 2)
 
     @staticmethod
     def _extract_key_points(answer: str) -> list[str]:

@@ -14,14 +14,14 @@ type Conflict = {
 
 const TYPE_LABELS: Record<string, string> = {
   HIERARCHY_CONFLICT: "Конфлікт ієрархії",
-  SPECIAL_VS_GENERAL: "Спеціальна vs загальна",
+  SPECIAL_VS_GENERAL: "Спеціальна vs загальна (скоро)",
   SAME_LEVEL_NEWER: "Новіша на тому ж рівні",
   DEAD_REFERENCE: "Мертвe посилання",
   GHOST_NORM: "Привид-норма",
-  CODE_DUPLICATION: "Дублювання в кодексі",
-  UNCONSTITUTIONAL: "Неконституційність",
+  CODE_DUPLICATION: "Дублювання в кодексі (скоро)",
+  UNCONSTITUTIONAL: "Неконституційність (скоро)",
   EXPIRING: "Сплив строки дії",
-  EU_MISMATCH: "Розбіжність з EU",
+  EU_MISMATCH: "Розбіжність з EU (скоро)",
 };
 
 export default function ConflictsPage() {
@@ -65,7 +65,7 @@ export default function ConflictsPage() {
   return (
     <>
       <h1 style={{ maxWidth: "18ch" }}>Протиріччя та колізії</h1>
-      <p className="lead">Якщо дві норми суперечать, переможця визначають правила, а не здогадка.</p>
+      <p className="lead">Якщо дві норми суперечать, переможця визначають правила, а не здогадка. Знайдені кандидати — орієнтир, не юридична оцінка; остаточно визначає експерт.</p>
       <div className="grid">
         <div className="glass card">
           <h2>Рівні сили</h2>
@@ -74,9 +74,9 @@ export default function ConflictsPage() {
         <div className="glass card">
           <h2>Правила вибору</h2>
           <div className="why">Вища сила перемагає нижчу.</div>
-          <div className="why">Спеціальна норма перемагає загальну.</div>
+          <div className="why">Спеціальна норма перемагає загальну. <span className="tag">(скоро)</span></div>
           <div className="why">На одному рівні перемагає новіша.</div>
-          <div className="why">Рішення Конституційного Суду скасовує норму.</div>
+          <div className="why">Рішення Конституційного Суду скасовує норму. <span className="tag">(скоро)</span></div>
         </div>
         <div className="glass card">
           <h2>Знайдені колізії</h2>
@@ -102,7 +102,9 @@ export default function ConflictsPage() {
                       <b>{TYPE_LABELS[c.conflict_type] || c.conflict_type}</b>
                       <br />
                       <span className="tag">
-                        впевненість: {c.confidence}
+                        {c.confidence === "high" || c.confidence === "medium" || c.confidence === "low"
+                          ? `певність: ${c.confidence === "high" ? "висока" : c.confidence === "medium" ? "середня" : "низька"} (правило)`
+                          : `впевненість: ${c.confidence}`}
                         {c.rule_applied ? ` · правило: ${c.rule_applied}` : ""}
                       </span>
                       {c.explanation && <br />}

@@ -151,7 +151,7 @@ export default function LegislationDetailPage() {
           {!qualityErr && !quality && <p className="text-sm text-text-secondary">Завантаження…</p>}
           {quality && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-md border border-gold/10 bg-elevated p-3">
                   <div className="text-xs text-text-secondary">Розібрано статей</div>
                   <div className="text-2xl font-bold text-gold">{quality.parsed_articles}</div>
@@ -163,6 +163,10 @@ export default function LegislationDetailPage() {
                 <div className="rounded-md border border-gold/10 bg-elevated p-3">
                   <div className="text-xs text-text-secondary">Пропусків статей</div>
                   <div className="text-2xl font-bold text-gold">{quality.gaps_count}</div>
+                </div>
+                <div className="rounded-md border border-gold/10 bg-elevated p-3">
+                  <div className="text-xs text-text-secondary">Виключено з тексту</div>
+                  <div className="text-2xl font-bold text-gold">{quality.excluded_count ?? 0}</div>
                 </div>
                 <div className="rounded-md border border-gold/10 bg-elevated p-3">
                   <div className="text-xs text-text-secondary">Порожніх статей</div>
@@ -179,6 +183,12 @@ export default function LegislationDetailPage() {
               {quality.gaps?.length > 0 && (
                 <p className="text-xs text-text-secondary mt-1">
                   Пропуски: {quality.gaps.map((g: number) => `№${g}`).join(", ")}
+                </p>
+              )}
+              {quality.excluded_count > 0 && (
+                <p className="text-xs text-text-secondary mt-1">
+                  Виключено з чинного тексту (не пропуски):{" "}
+                  {(quality.excluded_articles || []).map((n: number) => `№${n}`).join(", ")}
                 </p>
               )}
               <p className="text-xs text-text-secondary/60 mt-2">{quality.note}</p>

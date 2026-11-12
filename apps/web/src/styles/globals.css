@@ -114,9 +114,12 @@ h2{font:600 24px/1.2 var(--font-playfair),'Playfair Display',serif;color:var(--c
 html, body, #__next {
   background: var(--bg);
   color: var(--text);
-body{font-family:var(--font-inter),system-ui,sans-serif}
   height: 100%;
   margin: 0;
+}
+
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 body {

@@ -193,8 +193,50 @@ async def document_quality(document_id: str, db: Session = Depends(get_db)):
     numbers = sorted({n for n, _ in articles})
     expected = max(numbers) if numbers else 0  # за останнім номером статті
 
-    excluded = set()  # «виключені» статті (напр. 25-1 не цілі числа не лічимо)
-    gaps = [n for n in range(1, expected + 1) if n not in set(numbers) and n not in excluded]
+    # §2.1 «виключені» статті визначаємо з тексту джерела (L1, без хардкоду):
+    # 1) явні примітки «Стаття N … виключено»;
+    # 2) пропуски у проміжку між наявними статтями, де джерело містить «виключено».
+    import re as _re
+
+    excluded: set[int] = set()
+    gap_note = ""
+    text_norm = (current_rev.normalized_text or "") if current_rev else ""
+    if text_norm:
+        for m in _re.finditer(r"[Сс]татт\w*\s+(\d+)(?:\s+частин\w*|\s+абзац\w*)?[^.]{0,150}?виключен", text_norm):
+            try:
+                excluded.add(int(m.group(1)))
+            except ValueError:
+                pass
+        positions: dict[int, int] = {}
+        for m in _re.finditer(r"[Сс]таття\s+(\d+)", text_norm):
+            try:
+                positions.setdefault(int(m.group(1)), m.start())
+            except ValueError:
+                pass
+        present = set(numbers)
+        for n in range(1, expected + 1):
+            if n in present or n in excluded:
+                continue
+            prevs = [p for p in present if p < n]
+            nexts = [p for p in present if p > n]
+            if not prevs or not nexts:
+                continue
+            p, q = max(prevs), min(nexts)
+            if p in positions and q in positions and positions[p] < positions[q]:
+                seg = text_norm[positions[p]:positions[q]].lower()
+                if "виключен" in seg:
+                    excluded.add(n)
+        if excluded:
+            gap_note = (
+                "Частина номерів позначена «виключено» в офіційному тексті — "
+                "це не пропуски розбору (напр., виключений розділ Конституції)."
+            )
+
+    gaps_all = [n for n in range(1, expected + 1) if n not in set(numbers)]
+    gaps = [n for n in gaps_all if n not in excluded]
+    # «Виключено» показуємо лише для тих номерів, яких немає в розборі:
+    # часткові виключення («Статтю N частину виключено») — стаття розібрана, пропуску немає.
+    excluded_absent = sorted(n for n in excluded if n not in set(numbers))
     empty_articles = sorted({n for n, t in articles if not t})
 
     if parsed_count == 0 or expected and parsed_count < expected * 0.5:
@@ -231,11 +273,13 @@ async def document_quality(document_id: str, db: Session = Depends(get_db)):
         "expected_articles": expected,
         "gaps": gaps[:50],
         "gaps_count": len(gaps),
+        "excluded_articles": excluded_absent[:50],
+        "excluded_count": len(excluded_absent),
         "empty_articles": empty_articles[:50],
         "empty_count": len(empty_articles),
         "text_outside_structure_pct": outside_pct,
         "status": status,
-        "note": "quarantine не виходить у пошук; очікування Конституції — 161 стаття (звірити з джерелом)",
+        "note": gap_note or "quarantine не виходить у пошук; очікування Конституції — 161 стаття (звірити з джерелом)",
     }
 
 

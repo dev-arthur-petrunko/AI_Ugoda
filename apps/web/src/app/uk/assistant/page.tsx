@@ -65,7 +65,10 @@ export default function AssistantPage() {
               <Scale className="h-4 w-4" />
               <h2 className="font-medium">Відповідь</h2>
               <span className="tag">
-                провайдер: {result.provider} · впевненість: {result.confidence}
+                провайдер: {result.provider}
+                {result.provider !== "mock" && Number(result.confidence) > 0
+                  ? ` · впевненість: ${Math.round(Number(result.confidence) * 100)}%`
+                  : " · впевненість не обчислювалася"}
               </span>
             </div>
             <p style={{ whiteSpace: "pre-wrap" }}>{result.answer}</p>
@@ -87,7 +90,7 @@ export default function AssistantPage() {
                 <div className="space-y-1">
                   {result.citations.map((c, i) => (
                     <div key={i} className="why">
-                      <span className="tag">{c.verified ? "✓ верифіковано" : "· не верифіковано"}</span>{" "}
+                      <span className="tag">{c.verified ? "✓ підтверджено текстом норми" : "· не підтверджено"}</span>{" "}
                       {c.quote}
                     </div>
                   ))}
