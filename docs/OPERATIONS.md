@@ -1,159 +1,115 @@
-﻿# 📁 Операційна документація AI Ugoda
+﻿# AI Ugoda — Експлуатація, запуск, план робіт
 
-Цей файл призначений для агентів і розробників, які працюють над проєктом. В ньому чітко зафіксовано: де зберігається база даних, що є «сміттям» (тимчасовими файлами), а також рівень безпеки поточного релізу.
-
----
-
-## 1. Де зберігається база даних
-
-### Режим розробки (зараз активний)
-- **Активна БД:** PostgreSQL 16 (Docker, контейн `aiugoda_postgres`) — зараз працює саме вона.
-- **Резерв/dev:** SQLite `apps/api/test.db` або `data/aiugoda.db` — використовується **лише тестами** (TestClient override на SQLite in-memory).
-- **⚠️ `data/aiugoda.db` застарів** (немає `alembic_version` і колонки `legal_provisions.embedding`): запуск uvicorn проти SQLite дає **500** на `/api/v1/stats`. Не використовуйте його як робочу БД — активна БД тільки PostgreSQL.
-- **Змінна середовища:** `DATABASE_URL` у файлі `.env` (корінь проєкту)
-- **Приклад (PostgreSQL):** `DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@localhost:5432/aiugoda`
-
-**Як перевірити, де зараз лежить БД:**
-```powershell
-python -c "import sys; sys.path.insert(0, r'C:\Users\Arthur\Desktop\AI Ugoda\apps\api'); from app.core.config import settings; print(settings.DATABASE_URL)"
-```
-
-### Режим продакшну (Docker)
-- **Тип:** PostgreSQL 16 (контейнер `aiugoda_postgres`, образ `pgvector/pgvector:pg16` + hunspell-uk).
-- **Об'єм даних:** volume `aiugoda_postgres_data` (Dashboard Docker або `docker volume ls`).
-- **Змінна середовища:** `DATABASE_URL=postgresql+psycopg2://aiugoda:aiugoda@postgres:5432/aiugoda` (усередині мережі Docker).
-- **Запуск:** `docker compose up --build` (API виконує `alembic upgrade head` при старті).
-- **Міграції:** `0001_initial_schema`, `0002_extend_schema`, `0003_pgvector_fts`, `0004_unique_constraints`, `0005_ukrainian_fts`.
-
-> **Правило:** ніколи не пишите жорстко задані шляхи до `C:\Users\...` у коді бекенду. У `app/core/database.py` шлях до SQLite розв'язується відносно поточного файлу конфігурації через `pathlib.Path.resolve()`.
+**Оновлено:** 12.11.2026. Як запустити, як супроводжувати, що робити далі.  
+Стан — `STATUS.md`; архітектура/промти — `PROJECT_FULL_REPORT.md`.
 
 ---
 
-## 2. Що є «сміттям» / тимчасовими файлами (можна видаляти)
-
-Наступні файли та папки безпечно видаляти, вони відновлюються автоматично або не несуть цінних даних:
-
-| Шлях | Що це | Можна видаляти? |
-|------|-------|-----------------|
-| `apps/api/__pycache__/` | Скомпільований Python-код | ✅ Так |
-| `apps/web/.next/` | Збірка Next.js | ✅ Так |
-| `apps/web/node_modules/` | Залежності npm | ✅ Так (повернути через `npm install`) |
-| `.pytest_cache/` | Кеш тестів pytest | ✅ Так |
-| `*.pyc`, `*.pyo` | Байт-код Python | ✅ Так |
-| `api.out.log`, `api.err.log` | Логи запуску uvicorn (локально) | ✅ Так |
-| `debug*.py`, `debug_err.txt` | Тимчасові скрипти налагодження | ✅ Так (не комітити) |
-
-### ⚠️ НЕ видаляти (ціповані дані / секрети)
-- `data/aiugoda.db` — база даних SQLite (всі акти, користувачі, колізії)
-- `apps/api/alembic/versions/0001_initial_schema.py` — міграція БД
-- `apps/api/alembic/versions/0002_extend_schema.py` — міграція БД (ТЗ v2)
-- `.env` — змінні середовища (містить `SECRET_KEY`, ключі AI, паролі) — **не публікувати в git**
-- `docker-compose.yml` — конфігурація інфраструктури
-
----
-
-## 3. Рівень безпеки (поточний стан)
-
-Проєкт знаходиться на **Фазі 2 (прототип даних)**. Чесний статус:
-
-| Компонент | Статус | Деталі |
-|-----------|--------|--------|
-| **База даних** | ✅ Готово | PostgreSQL 16 (Docker) з Ukrainian FTS; SQLite — лише для тестів; 5 сід-актів імпортовано |
-| **Імпорт актів** | ✅ Готово | `/sync/run` → `sync_once()`: парсинг zakon.rada.gov.ua (K4) |
-| **Деталі акта / diff** | ✅ Готово | `/documents/{id}/at?date=`, `/documents/{id}/diff` (K8) |
-| **Повнотекстовий пошук** | ✅ Готово | Ukrainian FTS (tsquery + GIN, конфігурація `ukrainian`) |
-| **Детектор колізій** | ✅ Готово | 5 типів (HIERARCHY, SAME_LEVEL_NEWER, DEAD_REFERENCE, EXPIRING, GHOST_NORM) |
-| **ІІ / RAG** | ⚠️ Частково | `/ai/ask` працює; реальний провайдер потребує ключа в `.env` (зараз `AI_PROVIDER=mock`) |
-| **Rate limiting** | ✅ Готово | Per IP, sliding window, Redis + in-memory fallback, 120 req/min |
-| **Автентифікація** | ✅ Готово | JWT (jose, декодування, ролі user/admin) у `deps.py`; `/api/v1/stats` — публічний; захищені ендпоінти віддають 401 |
-| **Заголовки безпеки** | ✅ Готово | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy (middleware у `main.py`) |
-
-Нижче наведено чесний огляд безпеки:
-
-### ❌ НЕ реалізовано (не робити в продакшні без виправлення)
-| Проблема | Де | Статус |
-|----------|----|--------|
-| `SECRET_KEY=dev-secret-change-me` | `.env` | ⚠️ Змінити перед продакшном |
-| `COOKIE_SECURE=false` | `.env` | ⚠️ Куки не зашифровані |
-| Реальний LLM-провайдер | `ai_service.py` | ⚠️ Потрібен ключ (`GROQ_API_KEY` etc.) у `.env`; зараз `AI_PROVIDER=mock` |
-| CVE у залежностях | pip-audit / npm audit | ⚠️ Потрібні оновлення пакетів |
-| Юридичне рев'ю (K12) | — | ⚠️ Очікує підпису юриста (див. STATUS.md, розділ «Юридичне рев'ю K12») |
-
-### ✅ Реалізовано з безпеки
-- CORS (тільки `http://localhost:3000` у розробці); **UI працює same-origin** (`API_BASE=""` + rewrites Next.js) — CORS для фронтенду не потрібен
-- SQL-ін'єкції: параметризовані запити SQLAlchemy (тести `test_sql_injection.py`)
-- JWT / RBAC: `deps.py` (декодування токена, ролі user/admin, перевірка `is_superuser`)
-- Rate limiting: Redis + in-memory fallback, 120 req/min
-- Заголовки безпеки: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- Завантажені файли договорів хешуються (`secure_storage_key`); вміст поки не шифрується
-- Аудитний журнал (`audit_logs`) без запису повного тексту договорів
-
-### Рекомендація агенту
-- Не додавайте нових секретів у `.env` або у код — використовуйте змінні середовища.
-- При тестуванні не надсилайте реальні тек스트 договорів через `AI_PROVIDER=groq/openai/anthropic`, якщо ключ не додано (зараз `mock`).
-- При пуші в GitHub переконайтеся, що `.env` додано у `.gitignore` (вже додано).
-
----
-
-## 4. Як запустити проєкт локально (чекулист)
+## 1. Локальний запуск
 
 ```powershell
-# 1. Перейти в корінь проєкту
-cd "C:\Users\Arthur\Desktop\AI Ugoda"
+# 1) Інфраструктура (потрібна ПЕРЕД тестами/e2e — інакше «немає зв'язку з API»)
+docker compose up -d postgres redis          # postgres/pgvector + redis:7
 
-# 2. Переконатися, що .env існує (створити з .env.example, якщо немає)
-
-# 3. База даних + Redis (Docker)
-docker compose up -d postgres redis
-# Міграції (або автоматичний `alembic upgrade head` при старті api в docker compose)
-cd apps\api; alembic upgrade head; cd ..\..
-
-# 4. (Опційно) імпорт тестових актів: 5 шт. (Конституція, Цивільний, Кримінальний, КУпАП, Податковий)
-python apps/api/scripts/seed_acts.py
-
-# 5. Бекенд (uvicorn) — робоча директорія apps/api
+# 2) API (:8000)
+$env:DATABASE_URL="postgresql+psycopg2://aiugoda:aiugoda@localhost:5432/aiugoda"
+$env:AUTH_DISABLED="true"; $env:APP_ENV="development"
 cd apps\api
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+alembic upgrade head                          # CLI alembic, не python -m alembic
+python -m uvicorn app.main:app --reload --port 8000
 
-# 6. Фронтенд (Next.js) — окремий термінал, робоча директорія apps/web
+# 3) Web (:3000)  — PowerShell блокує npm.ps1: використовувати npm.cmd/npx.cmd
 cd apps\web
-npx next build       # production
-npx next start -p 3000
-# або для розробки: npm run dev
+npm install
+npm.cmd run dev
 
-# 7. Перевірити
-# http://127.0.0.1:8000/health          -> {"status":"ok"}
-# http://127.0.0.1:8000/api/v1/stats     -> {"documents":5,...} (публічний)
-# http://127.0.0.1:8000/api/v1/documents?limit=50 -> total == кількість items (без дублів)
-# http://127.0.0.1:3000/uk               -> 200
-# http://127.0.0.1:3000/api/v1/stats     -> 200 (прокси same-origin, CORS не потрібен)
-# /conflicts без слеша віддає 307 -> /conflicts/ (штатний trailing-slash FastAPI), за ним 200
-
-# 8. Тести (з кореня проєкту, не з apps/api!)
-cd "C:\Users\Arthur\Desktop\AI Ugoda"
-python -m pytest -q        # 23 passed, 2 skipped
-ruff check apps/api        # 0 помилок
+# 4) Перевірки
+cd apps\web; npx.cmd tsc --noEmit; npx.cmd playwright test   # 19 passed
+cd ..\..; python -m pytest -q; python -m ruff check .        # 30 passed / clean
 ```
 
+- **Docker Desktop** має бути запущений; контейнери: `aiugoda_postgres` (має стати `healthy`), `aiugoda_redis`, `api`, `web`, `worker` (заглушка).
+- **Dev-сценарій** для e2e: `AUTH_DISABLED=true` + `APP_ENV=development`; API віддає анонімного `dev-user` без admin-прав.
+- **PowerShell**: `npm.cmd` / `npx.cmd` / `alembic` (не `python -m alembic`); бінарні операції з git через `cmd /c`.
+- Тестові SQLite `*.db` у корені — видаляти перед `pytest` (у `.gitignore`).
+
+## 2. Ключові конфіги
+
+**API — `apps/api/app/core/config.py` (`.env` у корені):**
+
+| Змінна | Default |
+|---|---|
+| `DATABASE_URL` | `postgresql+psycopg2://aiugoda:aiugoda@localhost:5432/aiugoda` |
+| `REDIS_URL` | `redis://localhost:6379/0` |
+| `SECRET_KEY` | `dev-secret-change-me` (**у production старт упаде**, якщо не змінити) |
+| `AUTH_DISABLED` | `False` (dev: `True`) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | 10080 (7 днів) |
+| `RATE_LIMIT_PER_MINUTE` | 120 |
+| `AI_PROVIDER` | `mock` (`mock|groq|openai|anthropic`) |
+| `GROQ_/OPENAI_/ANTHROPIC_API_KEY`, `*_MODEL` | `""` / `llama-3.1-8b-instant`, `gpt-4o-mini`, `claude-3-haiku-20240307` |
+| `ZAKON_RADA_BASE_URL`, `DATA_RADA_LAWS_LIST_URL` | офіційні хости (білий список) |
+| `CORS_ORIGINS` | `http://localhost:3000` |
+| `MAX_UPLOAD_MB` / `STORAGE_PATH` / `CONTRACT_RETENTION_DAYS` | 25 / `./data/uploads` / 90 |
+
+**Web:** `NEXT_PUBLIC_API_URL=http://localhost:8000`, `NEXT_PUBLIC_APP_ENV` (див. `.env.example`).
+
+## 3. Імпорт джерел (операція)
+
+- **Через UI**: `/uk/admin` → «Запустити синхронізацію» (потрібні admin-права; в dev — `AUTH_DISABLED` не дає admin!) → звіт: тривалість, знайдено/додано/оновлено/помилки, «Не імпортовано» URL+причина, попередження, попередні запуски.
+- **Через API**: `POST /api/v1/sync/run` (admin) → фоновий `sync_once()`; спостерігати: `GET /sync/runs?limit=5`, `GET /sync/status` (конектори, `import_locked`, стан джерел).
+- **Одноразовий скрипт**: `python apps/api/scripts/run_import_once.py` → JSON-звіт.
+- **Одноразові**: `scripts/init_db.py` (create_all без міграцій), `scripts/dev_fixtures.py` (5 фікстур-актів).
+- **Обмеження**: один запуск одночасно (`_import_lock`, 409); ≤1 HTTP-запит/с; лише білий список хостів; типовий результат Tier-1: `discovered=13, updated=13, errors=0`.
+
+## 4. Моніторинг і діагностика
+
+| Що | Як |
+|---|---|
+| Здоровʼя | `GET /health`, `GET /api/v1/health` → `{"status":"ok"}` |
+| Логи | uvicorn stdout; журнал імпортів — таблиця `import_runs` + `/sync/runs` |
+| Стан джерел | `GET /sync/status` → `active | degraded | down` (≥3 помилки поспіль → `down`) |
+| Rate limit | 429 `Rate limit exceeded...`; винятки `/health,/docs,/openapi.json` |
+| Аудит | `audit_logs` (записи `source_not_allowed`) |
+| Типові збої | Docker не запущений → API 501/timeout → e2e «немає зв'язку з API»; порт 8000 зайнятий старим uvicorn → `Stop-Process`; зіпсований кеш `apps/web/test-results` → видалити перед прогоном; dev-сервер перезапускати після оновлення залежностей |
+
+## 5. CI/деплой
+
+- **CI** (`.github/workflows/ci.yml`, push/PR → `main`): job `web` = `npm ci` + `tsc` + `playwright install chromium`; job `api` = `pip install -r requirements.txt` + `ruff check app` + `alembic upgrade head` + `pytest` (PG16 pgvector-сервіс, `SECRET_KEY=ci-test-...`).
+- **Node**: 20 (≥20.9 — вимога Next 16). Python: 3.12 у CI, 3.14 локально.
+- **Контейнер API**: `alembic upgrade head && uvicorn ... --host 0.0.0.0:8000`, healthcheck `/health`.
+- **Перед production**: змінити `SECRET_KEY`, `AUTH_DISABLED=false`; `.env` не комітиться.
+
 ---
 
-## 5. Що робити, якщо база даних «зникла» або пише «unable to open database file»
+## 6. План робіт (що потрібно зробити; пріоритет ↓)
 
-1. Перевірити, що файл існує: `C:\Users\Arthur\Desktop\AI Ugoda\data\aiugoda.db`
-2. Якщо файлу немає — виконати `python apps/api/scripts/init_db.py`
-3. Якщо файл є, але помилка доступу — переконатися, що робоча директорія uvicorn вказана як `apps/api`, а шлях до БД у `.env` є абсолютним (`sqlite:///C:/Users/Arthur/Desktop/AI Ugoda/data/aiugoda.db`)
-4. Перезапустити uvicorn після змін у `.env`
+> Перелік сформований за результатами аналізу коду на 12.11.2026. Нові вимоги/план надасть власник після аналізу проєкту.
 
----
+### P0 — безпека та коректність перед будь-яким запуском
+1. **Підключити `verify_citation()` у `ask()`** — зараз `verified=true` хардкодиться; з LLM у прод цитування «підтверджені» без перевірки.
+2. **Юридичне рев'ю** чек-листа `PROJECT_FULL_REPORT.md` §9 (ієрархія, ваги ризику, рівні сили, персдані).
+3. **Виправити битий блок `globals.css`** (~114–120, відсутнє `}`) + візуальна перевірка обох тем.
+4. **Вирішити robots.txt `data.rada.gov.ua`** (повага ↔ batch-каталог).
 
-## 6. Документація проєкту (усього 3 файли)
+### P1 — функціональні прогалини
+5. **Завантаження файлів** у `/uk/workspace` (`POST` ендпоінт; схема/захист уже є).
+6. **Реальний `GET /graph/{id}`** — вузли/ребра з `legal_links` (UI вже готовий, зараз стаб).
+7. **`GET/PATCH /conflicts/{id}`** — збереження `conflict_candidates` + підтвердження експертом; реалізувати `SPECIAL_VS_GENERAL` і `CODE_DUPLICATION`.
+8. **Підключити `RiskAssessor`** до ендпоінта/UI (формула готова).
+9. **Стрім змін** `/uk/changes`: наповнювати `legal_events` з дифів ревізій замість сортування списку.
+10. **Воркер розкладу**: замінити `worker`-заглушку на плановий `sync_once()` (cron/beat) + сповіщення про `down`-джерела.
 
-- `README.md` — загальний огляд проєкту (корінь репозиторію)
-- `docs/STATUS.md` — статус: що зроблено (K1–K12), останні зміни, юридичне рев'ю K12, Git
-- `docs/PROJECT_FULL_REPORT.md` — архітектура, БД, автентифікація, пошук, фронтенд, Docker, тести, зміни
-- `docs/OPERATIONS.md` — цей файл: БД, тимчасові файлі, безпека, запуск, troubleshooting
+### P2 — якість AI/RAG
+11. **LLM-провайдер у прод**: обрати провайдер, ключі, `AI_PROVIDER`, моніторинг помилок (фолбек на мок уже є).
+12. **Обчислення embeddings** (колонка `Vector(1536)` + HNSW вже створені) → гібридний пошук FTS+vector.
+13. **`prompt_version`/`ai_analyses`** — почати писати історію запитів й версій промптів.
 
----
+### P3 — досвід і розширений функціонал
+14. Доставка моніторингу (email/Telegram за `delivery_preferences`).
+15. Експорт звітів PDF/CSV (`/uk/reports`).
+16. Прибрати невикористаний `framer-motion` (або оживити ним мікро-анімації).
+17. Ghosting e2e-скриншотів: спробувати headed-прогін у CI (поки що артефакт оточення).
+18. Прибрати вороний `scripts/__pycache__/seed_acts...pyc`; `asyncio_mode` у `pytest.ini` — за потреби `auto`.
 
-**Останнє оновлення:** 04.11.2026  
-**Автор:** Arthur Petrunko <arthurpetrunko@gmail.com>
+### Заморожено (рішення власника)
+- Юр-рев'ю K12 (п.2), LLM-ключі (п.11), ендпоінт завантаження (п.5), robots.txt (п.4) — усе перелічене вище як задачі; статус — `STATUS.md` §2.1.
