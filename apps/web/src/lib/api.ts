@@ -203,6 +203,18 @@ export async function getConflicts() {
   return request<{ items: any[]; total: number }>("/api/v1/conflicts/");
 }
 
+export async function getConflict(conflictId: string) {
+  return request<any>(`/api/v1/conflicts/${conflictId}`);
+}
+
+/** §6: рішення експерта — «Підтверджено» | «Відхилено» (потрібні права адміна). */
+export async function reviewConflict(conflictId: string, review_status: "Підтверджено" | "Відхилено") {
+  return request<any>(`/api/v1/conflicts/${conflictId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ review_status }),
+  });
+}
+
 // AI assistant
 export async function askAI(question: string, documentId?: string) {
   const params = new URLSearchParams({ question });

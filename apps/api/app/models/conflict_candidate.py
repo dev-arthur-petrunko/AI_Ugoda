@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +29,13 @@ class ConflictCandidate(Base, TimestampMixin, UUIDMixin):
         "winner_provision_id", String(36), ForeignKey("legal_provisions.id", ondelete="SET NULL"), nullable=True
     )
     explanation: Mapped[str | None] = mapped_column(Text, nullable=True)  # чitse объяснення з посиланням на правило
+
+    # §6: чесне походження та експертне рішення.
+    source_of_detection: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="code", server_default="code"
+    )  # code | ai | expert
+    reviewed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)  # email експерта
+    reviewed_at = mapped_column(DateTime(timezone=True), nullable=True)
 
     provision_a: Mapped["LegalProvision"] = relationship(foreign_keys=[provision_a_id])
     provision_b: Mapped["LegalProvision"] = relationship(foreign_keys=[provision_b_id])

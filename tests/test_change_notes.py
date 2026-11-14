@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """§4.3: офіційні примітки про зміни → факти (без вигадоків)."""
 
 from app.services.change_notes import extract_change_notes

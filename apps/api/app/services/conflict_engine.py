@@ -17,11 +17,15 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.conflict_candidate import ConflictCandidate
+from app.models.document_revision import DocumentRevision
 from app.models.legal_document import LegalDocument
 from app.models.legal_link import LegalLink
 from app.models.legal_provision import LegalProvision
@@ -196,36 +200,242 @@ class ConflictEngine:
             )
         return None
 
-    def run_all(self) -> list[ConflictCandidate]:
+    # ------------------------------------------------------------------
+    # §6: чесні детектори за реальними даними (без попарного «кожен з кожним»)
+    # ------------------------------------------------------------------
+
+    _FULL_EXCL_RE = re.compile(
+        r"\{\s*Статт[яюі]\s+(\d+(?:\s*-\s*\d+)?)\s+(?:на\s+підставі|виключен)",
+        re.IGNORECASE,
+    )
+    _NOTE_RE = re.compile(r"\{([^{}]{5,1000})\}")
+    _REF_THIS_ACT_RE = re.compile(
+        r"статт[^\d\s]{0,4}\s+(\d+(?:\s*-\s*\d+)?)\s+[^.]{0,60}?цього\s+(?:Кодексу|Закону)",
+        re.IGNORECASE,
+    )
+    _TEMP_NORM_RE = re.compile(
+        r"на період дії воєнного стану|до закінчення терміну дії воєнного стану|"
+        r"до (?:установлення|закінчення) особливого правового режиму",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _norm_article(raw: str) -> str:
+        return re.sub(r"\s*-\s*", "-", raw.strip())
+
+    def detect_dead_references(self) -> list[ConflictCandidate]:
+        """Відсилка на повністю виключену статтю того самого акта (DEAD_REFERENCE).
+
+        Ллємо лише: (а) стаття повністю виключена приміткою джерела
+        «{Статтю N виключено …}», (б) такої статті нема в розборі,
+        (в) явна відсилка «статті N … цього Кодексу/Закону» поза примітками.
+        Часткові виключення («частину статті N виключено») не рахуємо.
         """
-        Запускає всі детерміновані перевірки над існуючими даними в БД.
-        Повертає список знайдених кандидатів (без запису в БД — викликач вирішує).
+        out: list[ConflictCandidate] = []
+        docs = self.db.query(LegalDocument).filter(
+            LegalDocument.data_origin == "official"
+        ).all()
+        for doc in docs:
+            provisions = (
+                self.db.query(LegalProvision)
+                .join(
+                    DocumentRevision,
+                    DocumentRevision.id == LegalProvision.document_revision_id,
+                )
+                .filter(DocumentRevision.legal_document_id == doc.id)
+                .all()
+            )
+            if not provisions:
+                continue
+            excluded: dict[str, str] = {}
+            present: set[str] = set()
+            for p in provisions:
+                if p.article_number:
+                    present.add(str(p.article_number))
+                if p.text:
+                    for m in self._FULL_EXCL_RE.finditer(p.text):
+                        num = self._norm_article(m.group(1))
+                        end = p.text.find("}", m.start())
+                        note = p.text[m.start(): end + 1] if end != -1 else m.group(0)
+                        excluded[num] = note.strip()[:300]
+            if not excluded:
+                continue
+            for p in provisions:
+                if not p.text:
+                    continue
+                stripped = self._NOTE_RE.sub(" ", p.text)
+                for m in self._REF_THIS_ACT_RE.finditer(stripped):
+                    num = self._norm_article(m.group(1))
+                    if num not in excluded or num in present:
+                        continue
+                    ctx = stripped[max(0, m.start() - 100): m.end() + 80].strip()
+                    out.append(
+                        ConflictCandidate(
+                            provision_a_id=p.id,
+                            provision_b_id=p.id,
+                            conflict_type="DEAD_REFERENCE",
+                            evidence_json={
+                                "reference_quote": ctx[:500],
+                                "excluded_note": excluded[num],
+                                "excluded_article": num,
+                                "document": doc.title,
+                            },
+                            confidence="high",
+                            review_status="Не підтверджено",
+                            rule_applied=(
+                                "Відсилка до статті, повністю виключеної з чинної "
+                                "редакції цього самого акта"
+                            ),
+                            winner_provision_id=None,
+                            explanation=(
+                                f"«{doc.title}»: норма посилається на статтю {num}, яку "
+                                f"джерело позначає виключеною: {excluded[num][:160]} "
+                                "Норма-кандидат для перевірки експертом."
+                            ),
+                            source_of_detection="code",
+                        )
+                    )
+        return out
+
+    def detect_expiring_all(self) -> list[ConflictCandidate]:
+        """Тимчасові норми з прямою умовою строку в тексті (EXPIRING)."""
+        out: list[ConflictCandidate] = []
+        rows = (
+            self.db.query(LegalProvision, LegalDocument)
+            .join(
+                DocumentRevision,
+                DocumentRevision.id == LegalProvision.document_revision_id,
+            )
+            .join(LegalDocument, LegalDocument.id == DocumentRevision.legal_document_id)
+            .filter(LegalProvision.text.like("%воєнного стану%"))
+            .limit(500)
+            .all()
+        )
+        for prov, doc in rows:
+            m = self._TEMP_NORM_RE.search(prov.text or "")
+            if not m:
+                continue
+            cand = self.detect_expiring(prov, doc)
+            if cand:
+                cand.evidence_json = {
+                    **(cand.evidence_json or {}),
+                    "quote": m.group(0),
+                    "provision_text_head": (prov.text or "")[:400],
+                }
+                cand.source_of_detection = "code"
+                out.append(cand)
+        return out
+
+    def detect_code_duplications(self) -> list[ConflictCandidate]:
+        """Дослівно однакові норми в різних актах (CODE_DUPLICATION).
+
+        Лліво лише повний збіг SHA-256 тексту (>80 символів) між актами —
+        це факт, а не схожість на погляд.
+        """
+        out: list[ConflictCandidate] = []
+        dup_rows = (
+            self.db.query(
+                LegalProvision.content_checksum,
+                func.count(func.distinct(DocumentRevision.legal_document_id)).label("n"),
+            )
+            .join(
+                DocumentRevision,
+                DocumentRevision.id == LegalProvision.document_revision_id,
+            )
+            .filter(
+                LegalProvision.content_checksum.isnot(None),
+                func.length(LegalProvision.text) > 80,
+            )
+            .group_by(LegalProvision.content_checksum)
+            .having(func.count(func.distinct(DocumentRevision.legal_document_id)) > 1)
+            .all()
+        )
+        for checksum, _n in dup_rows:
+            provisions = (
+                self.db.query(LegalProvision, LegalDocument)
+                .join(
+                    DocumentRevision,
+                    DocumentRevision.id == LegalProvision.document_revision_id,
+                )
+                .join(LegalDocument, LegalDocument.id == DocumentRevision.legal_document_id)
+                .filter(LegalProvision.content_checksum == checksum)
+                .limit(10)
+                .all()
+            )
+            if len(provisions) < 2:
+                continue
+            (prov_a, doc_a), (prov_b, doc_b) = provisions[0], provisions[1]
+            if str(doc_a.id) == str(doc_b.id):
+                continue
+            out.append(
+                ConflictCandidate(
+                    provision_a_id=prov_a.id,
+                    provision_b_id=prov_b.id,
+                    conflict_type="CODE_DUPLICATION",
+                    evidence_json={
+                        "content_checksum": checksum,
+                        "document_a": doc_a.title,
+                        "document_b": doc_b.title,
+                        "quote": (prov_a.text or "")[:500],
+                        "quote_matches": True,
+                    },
+                    confidence="high",
+                    review_status="Не підтверджено",
+                    rule_applied="Дослівний збіг текстів норм у двох актах (SHA-256)",
+                    winner_provision_id=None,
+                    explanation=(
+                        f"Норми актів «{doc_a.title}» ({prov_a.provision_identifier}) і "
+                        f"«{doc_b.title}» ({prov_b.provision_identifier}) мають "
+                        "дослівно однаковий текст (збіг SHA-256). Кандидат: можливе "
+                        "дублювання або технічна помилка джерела; остаточно — експерт."
+                    ),
+                    source_of_detection="code",
+                )
+            )
+        return out
+
+    def run_all(self, persist: bool = True) -> list[ConflictCandidate]:
+        """Запускає всі чесні детерміновані перевірки над даними БД.
+
+        §6: без попарного «кожен акт × кожен акт» — лише правила за
+        наявними фактами (відсилки на виключені статті, тимчасові норми,
+        дослівні дублікати). Кандидати позначаються «Не підтверджено»
+        до перевірки експертом.
         """
         candidates: list[ConflictCandidate] = []
+        candidates += self.detect_dead_references()
+        candidates += self.detect_expiring_all()
+        candidates += self.detect_code_duplications()
 
-        docs = self.db.query(LegalDocument).all()
-        Provision = __import__("app.models.legal_provision", fromlist=["LegalProvision"]).LegalProvision
-        provisions = self.db.query(Provision).all()
-        links = self.db.query(LegalLink).all()
+        if not persist:
+            return candidates
 
-        revision_ids_by_doc = {
-            d.id: [r.id for r in d.revisions] for d in docs
-        }
-        for i, doc_a in enumerate(docs):
-            for doc_b in docs[i + 1 :]:
-                provs_a = [p for p in provisions if p.document_revision_id in revision_ids_by_doc.get(doc_a.id, [])]
-                provs_b = [p for p in provisions if p.document_revision_id in revision_ids_by_doc.get(doc_b.id, [])]
-                if provs_a and provs_b:
-                    c = self.detect_hierarchy_conflict(provs_a[0], provs_b[0], doc_a, doc_b)
-                    if c:
-                        candidates.append(c)
-
-        for link in links:
-            c = self.detect_dead_reference(link)
-            if c:
-                candidates.append(c)
-
-        return candidates
+        # Дедуплікація: той самий тип + та сама пара норм — один кандидат
+        # (унікальний індекс uq_conflict_candidates_pair).
+        saved: list[ConflictCandidate] = []
+        for cand in candidates:
+            exists = (
+                self.db.query(ConflictCandidate)
+                .filter(
+                    ConflictCandidate.provision_a_id == cand.provision_a_id,
+                    ConflictCandidate.provision_b_id == cand.provision_b_id,
+                    ConflictCandidate.conflict_type == cand.conflict_type,
+                )
+                .first()
+            )
+            if exists:
+                saved.append(exists)
+                continue
+            self.db.add(cand)
+            try:
+                self.db.flush()
+            except IntegrityError:
+                self.db.rollback()
+                continue
+        self.db.commit()
+        for cand in saved:
+            self.db.refresh(cand)
+        return saved or candidates
 
     def detect_expiring(
         self,
@@ -246,7 +456,11 @@ class ConflictEngine:
         except Exception:  # noqa: BLE001, S110 — lazy relationship: без revision значення лишається None
             pass  # nosec B110
 
-        if not is_temp and not valid_until and not effective_to:
+        # §6: умова строку може бути прямо в тексті норми (не лише в метаданих):
+        # «на період дії воєнного стану», «до закінчення терміну дії воєнного стану».
+        text_condition = self._TEMP_NORM_RE.search(provision.text or "")
+
+        if not is_temp and not valid_until and not effective_to and not text_condition:
             return None
 
         reasons = []
@@ -256,6 +470,8 @@ class ConflictEngine:
             reasons.append("умова закінчення: " + str(valid_until))
         if effective_to:
             reasons.append("дата втрати чинності: " + str(effective_to))
+        if text_condition:
+            reasons.append("умова закінчення в тексті норми: «" + text_condition.group(0) + "»")
 
         return ConflictCandidate(
             provision_a_id=provision.id,

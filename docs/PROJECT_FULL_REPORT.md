@@ -79,14 +79,26 @@ AI Ugoda/
 - Дефолт: `data_origin='official'` (фікстури — за прапорцем); `only_current` → `effective_to IS NULL OR >= now`; ранжування статичне (`rank=1.0`), сортування за датою.
 
 ### 4.3 Колізії (`conflict_engine.py`, детерміновано, без LLM)
-- `_force_priority`: 8 рівнів → 1..8.
-- **HIERARCHY_CONFLICT** (lex superior): нижчий пріоритет програє; рівні → не конфлікт; `confidence=medium`.
-- **SAME_LEVEL_NEWER** (lex posterior): той самий рівень, пізніша дата редакції перемагає; `confidence=high`.
-- **DEAD_REFERENCE**: лінк на неіснуючу норму; `confidence=high`.
-- **EXPIRING**: `is_temporary | valid_until_condition | effective_to`; `confidence=high`.
-- **GHOST_NORM**: акт вимагає неіснуючого акта; `confidence=medium`.
-- `run_all()` — попарний обхід документів + лінки; кандидати **не зберігаються**, `review_status="Не підтверджено"`.
-- Не реалізовано (в UI підписані як «(скоро)»): `SPECIAL_VS_GENERAL`, `CODE_DUPLICATION`, `UNCONSTITUTIONAL`, `EU_MISMATCH`.
+
+**§6 — чесні кандидати без попарного «кожен акт × кожен акт».** `run_all(persist=True)`
+зберігає у `conflict_candidates` (UNIQUE(provision_a, provision_b, type); повтор → наявні)
+кандидатів лише з фактів джерела:
+
+| Тип | Правило (детерміноване) | Доказ на БД |
+|---|---|---|
+| `DEAD_REFERENCE` | Відсилка «статті N … цього Кодексу/Закону» поза примітками, де N **повністю** виключено приміткою «{Статтю N виключено …}» і рядка N нема в розборі; часткові виключення («частину статті виключено») не рахуються | 3 кандидати (напр. ЦК ст.137 → виключена ст.147); усіх виключених статей у базі: 218 |
+| `EXPIRING` | Тимчасова норма: умова закінчення **в тексті** («на період дії воєнного стану», …), або `is_temporary`/`valid_until_condition`/`effective_to` | 5 кандидатів |
+| `CODE_DUPLICATION` | Дослівний збіг SHA-256 текстів (>80 символів) між **різними** актами | 1 кандидат (ГПК↔ЦПК) |
+
+Не реалізовано (в UI підписані як «(скоро)»): `HIERARCHY_CONFLICT`/`SAME_LEVEL_NEWER`
+(попарний обхід прибрано: у базі лише рівні 1 і 3, предмета регулювання нема),
+`SPECIAL_VS_GENERAL`, `GHOST_NORM` (патерни зобов'язань → 0 збігів на даних),
+`UNCONSTITUTIONAL` (потрібні рішення КС), `EU_MISMATCH` (потрібні директиви ЄС).
+
+Кожен кандидат: `confidence` = high/medium/low **правила** (не метрика моделі),
+`review_status` = «Не підтверджено», `source_of_detection=code`, `evidence_json` = дві цитати
+(або цитата + нотатка виключення), `rule_applied`, `explanation`.
+**Доказ:** БД `conflict_candidates` = 9; повторний `run_all` → ті самі 9 id.
 
 ### 4.4 Індекс уваги (`risk.py`; формула готова, не підключена; UI-словник — «індекс уваги», не «юридичний ризик»)
 ```

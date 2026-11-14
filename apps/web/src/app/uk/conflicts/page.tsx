@@ -10,18 +10,27 @@ type Conflict = {
   review_status: string;
   rule_applied: string | null;
   explanation: string | null;
+  evidence: Record<string, any>;
+  found_by: string;
+  reviewed_by: string | null;
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  HIERARCHY_CONFLICT: "Конфлікт ієрархії",
+  HIERARCHY_CONFLICT: "Конфлікт ієрархії (скоро)",
   SPECIAL_VS_GENERAL: "Спеціальна vs загальна (скоро)",
-  SAME_LEVEL_NEWER: "Новіша на тому ж рівні",
+  SAME_LEVEL_NEWER: "Новіша на тому ж рівні (скоро)",
   DEAD_REFERENCE: "Мертвe посилання",
-  GHOST_NORM: "Привид-норма",
-  CODE_DUPLICATION: "Дублювання в кодексі (скоро)",
+  GHOST_NORM: "Привид-норма (скоро)",
+  CODE_DUPLICATION: "Дублювання в кодексі",
   UNCONSTITUTIONAL: "Неконституційність (скоро)",
-  EXPIRING: "Сплив строки дії",
+  EXPIRING: "Тимчасова норма: сплив строку",
   EU_MISMATCH: "Розбіжність з EU (скоро)",
+};
+
+const CONF_LABELS: Record<string, string> = {
+  high: "висока",
+  medium: "середня",
+  low: "низька",
 };
 
 export default function ConflictsPage() {
@@ -73,9 +82,9 @@ export default function ConflictsPage() {
         </div>
         <div className="glass card">
           <h2>Правила вибору</h2>
-          <div className="why">Вища сила перемагає нижчу.</div>
+          <div className="why">Вища сила перемагає нижчу. <span className="tag">(принцип)</span></div>
           <div className="why">Спеціальна норма перемагає загальну. <span className="tag">(скоро)</span></div>
-          <div className="why">На одному рівні перемагає новіша.</div>
+          <div className="why">На одному рівні перемагає новіша. <span className="tag">(скоро)</span></div>
           <div className="why">Рішення Конституційного Суду скасовує норму. <span className="tag">(скоро)</span></div>
         </div>
         <div className="glass card">
@@ -90,27 +99,51 @@ export default function ConflictsPage() {
             </div>
           )}
           {state === "ready" && items.length === 0 && (
-            <p className="tag">Кандидатів на конфлікт поки не знайдено.</p>
+            <p className="tag">Кандидатів поки не знайдено. Завантаження й аналіз офіційних текстів триває.</p>
           )}
           {state === "ready" && items.length > 0 && (
             <>
-              <p className="tag" style={{ marginBottom: 8 }}>Всього: {total}</p>
+              <p className="tag" style={{ marginBottom: 8 }}>
+                Всього кандидатів: {total} · усі очікують на перевірку експерта
+              </p>
               <div className="space-y-2">
                 {items.map((c, i) => (
-                  <div key={c.id || i} className="lvl">
+                  <div key={c.id || i} className="lvl" style={{ alignItems: "flex-start" }}>
                     <span>
-                      <b>{TYPE_LABELS[c.conflict_type] || c.conflict_type}</b>
+                      <b>{TYPE_LABELS[c.conflict_type] || c.conflict_type}</b>{" "}
+                      <span className="tag">
+                        знайдено: {c.found_by === "code" ? "програмою (правило)" : c.found_by}
+                      </span>
                       <br />
                       <span className="tag">
-                        {c.confidence === "high" || c.confidence === "medium" || c.confidence === "low"
-                          ? `певність: ${c.confidence === "high" ? "висока" : c.confidence === "medium" ? "середня" : "низька"} (правило)`
-                          : `впевненість: ${c.confidence}`}
+                        певність: {CONF_LABELS[c.confidence] || c.confidence} (правило)
                         {c.rule_applied ? ` · правило: ${c.rule_applied}` : ""}
                       </span>
                       {c.explanation && <br />}
                       {c.explanation && <span className="tag">{c.explanation}</span>}
+                      {c.evidence?.reference_quote && (
+                        <>
+                          <br />
+                          <span className="tag">Цитата: «{c.evidence.reference_quote}»</span>
+                        </>
+                      )}
+                      {c.evidence?.quote && (
+                        <>
+                          <br />
+                          <span className="tag">Цитата: «{String(c.evidence.quote).slice(0, 300)}»</span>
+                        </>
+                      )}
+                      {c.evidence?.excluded_note && (
+                        <>
+                          <br />
+                          <span className="tag">Виключення: {c.evidence.excluded_note}</span>
+                        </>
+                      )}
                     </span>
-                    <span className="tag">{c.review_status}</span>
+                    <span className="tag">
+                      {c.review_status}
+                      {c.reviewed_by ? ` · ${c.reviewed_by}` : ""}
+                    </span>
                   </div>
                 ))}
               </div>
